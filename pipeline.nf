@@ -18,6 +18,15 @@
 params.help = null
 params.ref = null
 params.regions = null
+params.cpu            		= "2"
+params.mem           		 = "20"
+params.strelka  = null
+params.bcftools   = null
+params.R   = null
+params.tabix  = null
+
+
+
 
 log.info ""
 log.info "----------------------------------------------------------------"
@@ -35,11 +44,11 @@ if (params.help) {
     log.info ""
     log.info "-------------------ITH-------------------------------"
     log.info "" 
-    log.info "nextflow run iarcbioinfo/pipeline.nf   --bam_folder path/to/bams/ --correspondance path/to/correpondance/csv/  --output_folder /path/to/output --strelka --platypus --R  --tabix --ref --regions path/to/"
+    log.info "nextflow run iarcbioinfo/pipeline.nf   --bam_folder path/to/bams/ --correspondance path/to/correpondance/csv/  --output_folder /path/to/output --strelka --bcftools --R  --tabix --ref --regions path/to/"
     log.info ""
     log.info "Mandatory arguments:"
-    log.info "--strelka              PATH                Path to strelka configureStrelkaSomaticWorkflow.py "
-    log.info "--platypus              PATH               platypus installation dir"
+    log.info "--strelka             PATH                Path to strelka installation dir "
+    log.info "--bcftools              PATH              bcftools installation dir"
     log.info "--R              PATH               R installation dir"
     log.info "--tabix             PATH               tabix installation dir"
     log.info "--falcon_qc             PATH            falcon.qc.r dir"
@@ -64,9 +73,10 @@ ref = file(params.ref)
 regions = 	file(params.regions)
 correpondance = file(params.correpondance)
 
-(bams_TTN,bams_TTN2 )= Channel.fromPath(correpondance).splitCsv(header: true, sep: '\t', strip: true)
-		.map{row -> [ row.ID,file(params.bam_folder + "/" + row.tumor1),file(params.bam_folder + "/" + row.tumor2),file(params.bam_folder + "/" + row.normal) ]}.into(2)
 
+
+bams_TTN= Channel.fromPath(correpondance).splitCsv(header: true, sep: '\t', strip: true)
+		.map{row -> [ row.ID,file(params.bam_folder + "/" + row.tumor1),file(params.bam_folder + "/" + row.tumor2),file(params.bam_folder + "/" + row.normal) ]}
 
 
 (bams_TT,bams_TT2) =  Channel.fromPath(correpondance).splitCsv(header: true, sep: '\t', strip: true)
@@ -75,8 +85,15 @@ correpondance = file(params.correpondance)
 bams_N = Channel.fromPath(correpondance).splitCsv(header: true, sep: '\t', strip: true)
 		.map{row -> [ row.ID,file(params.bam_folder + "/" + row.normal) ]}
 		
+bams_T1N = Channel.fromPath(correpondance).splitCsv(header: true, sep: '\t', strip: true)
+		.map{row -> [ row.ID,file(params.bam_folder + "/" + row.tumor1),file(params.bam_folder + "/" + row.normal) ]}
+
+bams_T2N = Channel.fromPath(correpondance).splitCsv(header: true, sep: '\t', strip: true)
+		.map{row -> [ file(params.bam_folder + "/" + row.tumor2),file(params.bam_folder + "/" + row.normal) ]}
 	
-		
+
+
+strelka_germline= params.strelka + '/bin/configureStrelkaGermlineWorkflow.py' 		
 		
 process germline_calling {
   input:
@@ -85,64 +102,23 @@ process germline_calling {
   file regions
 
   output:
-  set val(ID_tag),file("${normal.baseName}.vcf") into VCF_germline
+  set val(ID_tag),file("${normal.baseName}.vcf.gz") into VCF_germline
 
   shell:
   '''
-  ID_tag=!{ID}
-  !{params.platypus} callVariants --bamFiles=!{normal} --output=!{normal.baseName}.vcf --refFile=!{params.ref} --regions=!{regions} --badReadsThreshold=0 --qdThreshold=0 --rmsmqThreshold=20 --hapScoreThreshold=10 --scThreshold=0.99
-  '''
-}
-
-process germline_calling_pass {
-  input:
-  set val(ID) ,file(germlinevcf) from VCF_germline
-
-  output:
-  set val(ID_tag),file("${germlinevcf.baseName}.vcf") into (VCF_germline_passQC,VCF_germline_passCoverage)
-
-  shell:
-  '''
-  ID_tag=!{ID}
-cat !{germlinevcf} | grep "PASS" > !{germlinevcf.basename}.vcf
-'''
-}
-
-
-
-process somatic_calling {
-  input:
-  set val(ID) ,file (tumor1), file(tumor2), file(normal) from bams_TTN
-  file ref
-  file regions
-
-  output:
-  set val(ID_tag),file("${tumor1.baseName}.vcf"),file("${tumor2.baseName}.vcf") into VCF_somatic
-
-  shell:
-  '''
-  ID_tag=!{ID}
- !{params.strelka} --tumorBam=!{tumor1} --normalBam=!{normal} --referenceFasta=!{params.ref} --callRegions=!{params.regions} --callMemMb=1024  -m local -j 28
- !{params.strelka} --tumorBam=!{tumor2} --normalBam=!{normal} --referenceFasta=!{params.ref} --callRegions=!{params.regions} --callMemMb=1024  -m local -j 28
-  '''
-}
-
-process somatic_calling_pass {
+  ID_tag=!{ID}  
   
-  input:
-  set val(ID) ,file(somaticVCF1),file(somaticVCF2) from VCF_somatic
+  runDir="results/variants/"
+  !{strelka_germline} !{normal} --referenceFasta !{params.ref}  --runDir strelkaAnalysis --callRegions=!{params.regions}
+  cd strelkaAnalysis
+  ./runWorkflow.py -m local -j !{params.cpu} -g !{params.mem}
 
-  output:
-  set val(ID_tag),file("${somaticVCF1.baseName}.vcf"), file("${somaticVCF2.baseName}.vcf") into (VCF_somatic_passQC,VCF_somatic_passCoverage)
-
-  shell:
+ {params.bcftools} view -i'FILTER="PASS"' !{normal.baseName}.vcf.gz  > !{normal.baseName}.vcf.gz
   '''
-  ID_tag=!{ID}
-	cat !{somaticVCF1} | grep "PASS" > !{somaticVCF1}.vcf
-'''
 }
 
-input_germlineCoverage = bams_TTN2.join(VCF_germline_passCoverage)
+
+input_germlineCoverage = bams_TTN.join(VCF_germline)
 process germline_tumor_coverage {
   input:
   set val(ID),file (bamtumor1),file(bamtumor2),file(bamnormal),file(germlineVCF) from input_germlineCoverage
@@ -155,11 +131,74 @@ process germline_tumor_coverage {
 
 shell :
 '''
-!{params.platypus} callVariants --bamFiles=!{bamnormal},!{bamtumor1},!{bamtumor2} --refFile=!{input_ref} --regions=!{params.regions} --nCPU=12 --output=!{ID}.coverage.germline.vcf --source=!{germlineVCF} --minPosterior=0 --getVariantsFromBAMs=0
+
 '''
 }
 
-input_somaticCoverage = bams_TT2.join(VCF_somatic_passCoverage)
+
+
+
+
+strelka_somatic= params.strelka + '/bin/configureStrelkaSomaticWorkflow.py' 
+
+process somatic_calling_T1 {
+  input:
+  set val(ID) ,file (tumor1), file(normal) from bams_T1N
+  file ref
+  file regions
+
+  output:
+  set val(ID_tag), file 'strelkaAnalysis/results/variants/*.indels.vcf.gz' into VCF_somatic1_indels
+  set val(ID_tag), file 'strelkaAnalysis/results/variants/*.snvs.vcf.gz' into VCF_somatic1_snvs
+  set val(ID_tag), file 'strelkaAnalysis/results/variants/*.tbi' into TBI_somatic1
+  shell:
+  '''
+  ID_tag=!{ID}
+ !{strelka_somatic} --tumorBam=!{tumor1} --normalBam=!{normal} --referenceFasta=!{params.ref} --callRegions=!{params.regions} --callMemMb=1024  
+ cd strelkaAnalysis
+     ./runWorkflow.py -m local -j !{params.cpu} -g !{params.mem}
+     cd results/variants
+     mv somatic.indels.vcf.gz !{tumor1.baseName}.somatic.indels.vcf.gz
+     mv somatic.snvs.vcf.gz !{tumor1.baseName}.somatic.snvs.vcf.gz
+     mv somatic.indels.vcf.gz.tbi !{tumor1.baseName}.somatic.indels.vcf.gz.tbi
+     mv somatic.snvs.vcf.gz.tbi !{tumor1.baseName}.somatic.snvs.vcf.gz.tbi
+     
+    {params.bcftools} view -i'FILTER="PASS"' !{tumor1.baseName}.somatic.indels.vcf.gz  > !{tumor1.baseName}.somatic.indels.vcf.gz
+    {params.bcftools} view -i'FILTER="PASS"' !{tumor1.baseName}.somatic.snvs.vcf.gz  >  !{tumor1.baseName}.somatic.snvs.vcf.gz
+  '''
+}
+
+
+process somatic_calling_T2 {
+  input:
+  set val(ID) ,file(tumor2), file(normal) from bams_T2N
+  file ref
+  file regions
+
+  output:
+  set val(ID_tag), file 'strelkaAnalysis/results/variants/*.indels.vcf.gz' into VCF_somatic2_indels
+  set val(ID_tag), file 'strelkaAnalysis/results/variants/*.snvs.vcf.gz' into VCF_somatic2_snvs
+  set val(ID_tag), file 'strelkaAnalysis/results/variants/*.tbi' into TBI_somatic2
+  shell:
+  '''
+  ID_tag=!{ID}
+ !{strelka_somatic} --tumorBam=!{tumor2} --normalBam=!{normal} --referenceFasta=!{params.ref} --callRegions=!{params.regions} --callMemMb=1024  -m local -j 28
+  cd strelkaAnalysis
+     ./runWorkflow.py -m local -j !{params.cpu} -g !{params.mem}
+     cd results/variants
+     mv somatic.indels.vcf.gz !{tumor2.baseName}.somatic.indels.vcf.gz
+     mv somatic.snvs.vcf.gz !{tumor2.baseName}.somatic.snvs.vcf.gz
+     mv somatic.indels.vcf.gz.tbi !{tumor2.baseName}.somatic.indels.vcf.gz.tbi
+     mv somatic.snvs.vcf.gz.tbi !{tumor2.baseName}.somatic.snvs.vcf.gz.tbi
+     
+    {params.bcftools} view -i'FILTER="PASS"' !{tumor2.baseName}.somatic.indels.vcf.gz  > !{tumor2.baseName}.somatic.indels.vcf.gz
+    {params.bcftools} view -i'FILTER="PASS"' !{tumor2.baseName}.somatic.snvs.vcf.gz  >  !{tumor2.baseName}.somatic.snvs.vcf.gz
+  '''
+}
+
+VCF_somatic = VCF_somatic1.join(VCF_somatic2)
+input_somaticCoverage = bams_TT.join(VCF_somatic)
+
 
 process somatic_tumor_coverage {
    input:
@@ -173,8 +212,6 @@ process somatic_tumor_coverage {
   
   shell :
   '''
-!{params.platypus} callVariants --bamFiles=!{bamtumor1} --refFile=!{params.ref} --regions=!{params.regions} --nCPU=12 --output=!{bamtumor1.baseName}.vcf --source=!{somaticVCF2} --minPosterior=0 --getVariantsFromBAMs=0
-!{params.platypus} callVariants --bamFiles=!{bamtumor2} --refFile=!{params.ref} --regions=!{params.regions} --nCPU=12 --output=!{bamtumor2.baseName}.vcf --source=!{somaticVCF1} --minPosterior=0 --getVariantsFromBAMs=0
 
   '''
 }
