@@ -16,6 +16,8 @@
 
 
 params.help = null
+params.ref = null
+params.regions = null
 
 log.info ""
 log.info "----------------------------------------------------------------"
@@ -69,7 +71,6 @@ correpondance = file(params.correpondance)
 (bams_TTN,bams_TTN2 )= Channel.fromPath(correpondance).splitCsv(header: true, sep: '\t', strip: true)
 		.map{row -> [ row.ID,file(params.bam_folder + "/" + row.tumor1),file(params.bam_folder + "/" + row.tumor2),file(params.bam_folder + "/" + row.normal) ]}.into(2)
 
-bams_TTN.subscribe { println "value: $it" }
 
 
 (bams_TT,bams_TT2) =  Channel.fromPath(correpondance).splitCsv(header: true, sep: '\t', strip: true)
@@ -155,15 +156,15 @@ process germline_tumor_coverage {
   
   output:
   set val(ID),file("${ID}.vcf") into coverage_germline
-}
+
 shell :
 '''
-
-Platypus.py callVariants --bamFiles=!{bamnormal},!{bamtumor1},!{bamtumor2} --refFile=!{input_ref} --regions=!{params.regions} --nCPU=12 --output=!{ID}.coverage.germline.vcf --source=!{germlineVCF} --minPosterior=0 --getVariantsFromBAMs=0
+!{params.platypus} callVariants --bamFiles=!{bamnormal},!{bamtumor1},!{bamtumor2} --refFile=!{input_ref} --regions=!{params.regions} --nCPU=12 --output=!{ID}.coverage.germline.vcf --source=!{germlineVCF} --minPosterior=0 --getVariantsFromBAMs=0
 '''
 }
 
-input_somaticCoverage=bams_TT2.joint(VCF_somatic_passCoverage)
+input_somaticCoverage = bams_TT2.join(VCF_somatic_passCoverage)
+
 process somatic_tumor_coverage {
    input:
   set val(ID),file (bamtumor1),file(bamtumor2), file(somaticVCF1),file(somaticVCF2) from input_somaticCoverage
@@ -176,8 +177,8 @@ process somatic_tumor_coverage {
   
   shell :
   '''
-Platypus.py callVariants --bamFiles=!{bamtumor1} --refFile=!{params.ref} --regions=!{params.regions} --nCPU=12 --output=!{bamtumor1.baseName}.vcf --source=!{somaticVCF2} --minPosterior=0 --getVariantsFromBAMs=0
-Platypus.py callVariants --bamFiles=!{bamtumor2} --refFile=!{params.ref} --regions=!{params.regions} --nCPU=12 --output=!{bamtumor2.baseName}.vcf --source=!{somaticVCF1} --minPosterior=0 --getVariantsFromBAMs=0
+!{params.platypus} callVariants --bamFiles=!{bamtumor1} --refFile=!{params.ref} --regions=!{params.regions} --nCPU=12 --output=!{bamtumor1.baseName}.vcf --source=!{somaticVCF2} --minPosterior=0 --getVariantsFromBAMs=0
+!{params.platypus} callVariants --bamFiles=!{bamtumor2} --refFile=!{params.ref} --regions=!{params.regions} --nCPU=12 --output=!{bamtumor2.baseName}.vcf --source=!{somaticVCF1} --minPosterior=0 --getVariantsFromBAMs=0
 
   '''
 }
