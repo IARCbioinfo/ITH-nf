@@ -15,9 +15,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-params.input_BAM = null
-params.input_ref = null
-params.input_regions = null
+params.help = null
 
 log.info ""
 log.info "----------------------------------------------------------------"
@@ -40,16 +38,17 @@ if (params.help) {
     log.info "Mandatory arguments:"
     log.info "--samtools              PATH               samtools installation dir"
     log.info "--sambamba              PATH               sambamba installation dir"
-    log.info "--k8              PATH              k8 installation dir from bwakit-0.7.15" 
-    log.info "--bwa-postalt              PATH              bwa-postalt.js installation dir from bwakit-0.7.15"
-    log.info "--hs38DH.fa.alt              PATH            hs38DH.fa.alt installation dir from bwakit-0.7.15"
-    log.info "--strelka              PATH                strelka installation dir"
+    log.info "--strelka              PATH                Path to strelka configureStrelkaSomaticWorkflow.py "
     log.info "--platypus              PATH               platypus installation dir"
     log.info "--R              PATH               R installation dir"
     log.info "--vt              PATH               vt installation dir"
     log.info "--annovar              PATH               annovar installation dir"
     log.info "--tabix             PATH               tabix installation dir"
-    log.info "--input_folder         FOLDER               Folder containing bam files and R scripts"
+    log.info "--falcon_qc             PATH            falcon.qc.r dir"
+    log.info "--bam_folder         FOLDER               Folder containing bam files "
+    log.info "--correspondance		FILE				File containing the correspondance between the normal and two tumor samples and the sample id"
+    log.info "--ref                 FILE                Reference file"
+    log.info "--regions             FILE                 Regions "
     log.info ""
     log.info "Optional arguments:"
     log.info "--cpu                  INTEGER              Number of cpu to use (default=2)"
@@ -63,258 +62,122 @@ if (params.help) {
 } 
 
 
-// BAM correspondance file
-bams = file(params.input_BAM)
+ref = file(params.ref)
+regions = 	file(params.regions)
+correpondance = file(params.correpondance)
 
-bams_repo = Channel.fromPath(bams)
-  .splitCsv(header: ['patient_id', 'normal', 'tumor1', 'tumor2'], skip: 1 )
-  .map {  row ->
-  [row.patient_id ,
-    [file(row.normal), file(row.normal.replace(".bam",".bam.bai"))],
-    [file(row.tumor1), file(row.tumor1.replace(".bam",".bam.bai"))],
-    [file(row.tumor2), file(row.tumor2.replace(".bam",".bam.bai"))]
-  ] }
+(bams_TTN,bams_TTN2 )= Channel.fromPath(correpondance).splitCsv(header: true, sep: '\t', strip: true)
+		.map{row -> [ row.ID,file(params.bam_folder + "/" + row.tumor1),file(params.bam_folder + "/" + row.tumor2),file(params.bam_folder + "/" + row.normal) ]}.into(2)
 
-// Print repo
-//repo = bams_repo.map {path -> path }
-//repo.subscribe {println it}
-
-/* Data access
-patient_id : path[0]
-normal array : path[1]
-normal bam : path[1][0]
-normal bai : path[1][1]
-tumor1 array : path[2]
-tumor2 array : path[3]
-*/
-
-bams_repo.into { bams_repo ; bam ; tumor1 ; tumor2 }
-normal = bam.map { path -> path[1][0] }
-tumor1 = tumor1.map { path -> path[2][0] }
-tumor2 = tumor2.map { path -> path[3][0] }
-all_bams = normal.mix(tumor1, tumor2)
-patient_bams = bam.map { path -> [ path[1][0], path[2][0], path[3][0] ] }
-
-/** PROCESSES **/
+bams_TTN.subscribe { println "value: $it" }
 
 
-// Etape de post-alignement à finir
-process post_alignment {
-  input:
-  file i from all_bams
-
-  output:
-  file("${i}.HEAD") into BAM_post_al
-
-  shell:
-  '''
-samtools view -h ${BAM} | k8 bwa-postalt.js hs38DH.fa.alt | \
-sambamba view -S -f bam -l 0 /dev/stdin | \
-sambamba sort -t 8 -m 6G --tmpdir=!{BAM_post_al}/temp -o !{BAM_post_al}/!{i}_pa.bam /dev/stdin
-  //head -n1 !{i} > !{i}.HEAD
-  '''
-}
-
-
+(bams_TT,bams_TT2) =  Channel.fromPath(correpondance).splitCsv(header: true, sep: '\t', strip: true)
+		.map{row -> [ row.ID,file(params.bam_folder + "/" + row.tumor1),file(params.bam_folder + "/" + row.tumor2) ]}.into(2)
+		
+bams_N = Channel.fromPath(correpondance).splitCsv(header: true, sep: '\t', strip: true)
+		.map{row -> [ row.ID,file(params.bam_folder + "/" + row.normal) ]}
+		
+	
+		
+		
 process germline_calling {
   input:
-  file i from normal
-  file input_ref
-  file input_regions
+  set val(ID) ,file (normal) from bams_N
+  file ref
+  file regions
 
   output:
-  file("${i}.germline.vcf") into VCF_germline
+  set val(ID_tag),file("${normal.baseName}.vcf") into VCF_germline
 
   shell:
   '''
-  Platypus.py callVariants --bamFiles=!{i} --output=!{i}.germline.vcf --refFile=!{input_ref} --regions=!{input_regions} --badReadsThreshold=0 --qdThreshold=0 --rmsmqThreshold=20 --hapScoreThreshold=10 --scThreshold=0.99
+  ID_tag=!{ID}
+  !{params.platypus} callVariants --bamFiles=!{normal} --output=!{normal.baseName}.vcf --refFile=!{params.ref} --regions=!{regions} --badReadsThreshold=0 --qdThreshold=0 --rmsmqThreshold=20 --hapScoreThreshold=10 --scThreshold=0.99
   '''
 }
 
 process germline_calling_pass {
   input:
-  file i from VCF_germline
-
+  set val(ID) ,file(germlinevcf) from VCF_germline
 
   output:
-  file("${i}.germline.vcf") into VCF_germline_pass
+  set val(ID_tag),file("${germlinevcf.baseName}.vcf") into (VCF_germline_passQC,VCF_germline_passCoverage)
 
   shell:
   '''
-cat !{i} | grep "PASS" > !{VCF_germline_pass}/!{i}.germline.pass.vcf
+  ID_tag=!{ID}
+cat !{germlinevcf} | grep "PASS" > !{germlinevcf.basename}.vcf
 '''
 }
 
 
-process germline_AF {
-  input :
-  file i from VCF_germline_pass
-  
-  output :
-  
-  file ("${i}.svg") into germline_AF
-  shell :
-  '''
-  Rscript --vanilla germline_fractions_alleliques.R VCF_germline_pass germline_AF 
-  '''
-}
 
 process somatic_calling {
   input:
-  file i from patient_bams
-  file input_ref
-  file input_regions
+  set val(ID) ,file (tumor1), file(tumor2), file(normal) from bams_TTN
+  file ref
+  file regions
 
   output:
-  file("${i}.somatic.vcf") into VCF_somatic
+  set val(ID_tag),file("${tumor1.baseName}.vcf"),file("${tumor2.baseName}.vcf") into VCF_somatic
 
   shell:
   '''
-  strelka/configureStrelkaSomaticWorkflow.py --tumorBam='$TUMORBAM' --normalBam=!{i}[1][0] --referenceFasta=!{input_ref} --callRegions=!{input_regions} --callMemMb=1024 --runDir=STRELKA/!{i}
-  STRELKA/!{i}/runWorkflow.py -m local -j 28
-
+  ID_tag=!{ID}
+ !{params.strelka} --tumorBam=!{tumor1} --normalBam=!{normal} --referenceFasta=!{params.ref} --callRegions=!{params.regions} --callMemMb=1024  -m local -j 28
+ !{params.strelka} --tumorBam=!{tumor2} --normalBam=!{normal} --referenceFasta=!{params.ref} --callRegions=!{params.regions} --callMemMb=1024  -m local -j 28
   '''
 }
-
 
 process somatic_calling_pass {
   
   input:
-  file i from VCF_somatic
-
+  set val(ID) ,file(somaticVCF1),file(somaticVCF2) from VCF_somatic
 
   output:
-  file("${i}.germline.vcf") into VCF_somatic_pass
+  set val(ID_tag),file("${somaticVCF1.baseName}.vcf"), file("${somaticVCF2.baseName}.vcf") into (VCF_somatic_passQC,VCF_somatic_passCoverage)
 
   shell:
   '''
-	cat !{i} | grep "PASS" > !{VCF_somatic_pass}/!{i}.somatic.pass.vcf
+  ID_tag=!{ID}
+	cat !{somaticVCF1} | grep "PASS" > !{somaticVCF1}.vcf
 '''
 }
 
-
-process somatic_AF {
-  input :
-  file i from patient_bams
-
-  output :
-   file ("${i}.svg") into somatic_AF
-  
-  shell :
-  '''
-  Rscript --vanilla somatic_fractions_alleliques.R !{VCF_somatic_pass}/!{i}[2][0] !{VCF_somatic_pass}/!{i}[3][0] somatic_AF !{i}  !{i}[2][0] !{i}[3][0]
-  '''
-}
-
-process somatic_germline_intersect {
-  input :
-  file i from patient_bams
-
-  output :
-   file ("${i}.svg") into somatic_germline_intersect
-  
-  shell :
-  '''
-  Rscript --vanilla somatic_germline_fractions_alleliques.R !{i}[1][0] somatic_germline_intersect !{i} !{i}[2][0] !{i}[3][0]
-  '''
-}
-
-
-process venn_diagramm {
-  input :
-  file i from patient_bams
-
-  output :
-   file ("${i}.svg") into venn_diagramm
-
-  shell :
-  '''
-  Rscript --vanilla somatic_overlap_venn.R !{VCF_somatic_pass}/!{i}[2][0] !{VCF_somatic_pass}/!{i}[2][0] venn_diagramm !{i} !{i}[2][0] !{i}[3][0]
-  '''
-}
-
-
+input_germlineCoverage = bams_TTN2.join(VCF_germline_passCoverage)
 process germline_tumor_coverage {
   input:
-  file i from patient_bams
-  file input_ref
-  file input_regions
-  file j from VCF_germline_pass
+  set val(ID),file (bamtumor1),file(bamtumor2),file(bamnormal),file(germlineVCF) from input_germlineCoverage
+  file ref
+  file regions
+
   
   output:
-  file("${i}.coverage.germline.vcf") into coverage_germline
+  set val(ID),file("${ID}.vcf") into coverage_germline
 }
 shell :
-if(i==j){
+'''
 
-Platypus.py callVariants --bamFiles=!{i}[1][0],!{i}[2][0],!{i}[3][0] --refFile=!{input_ref} --regions=!{input_regions} --nCPU=12 --output=!{coverage_germline}/!{i}.coverage.germline.vcf --source=!{VCF_germline_pass}/!{i}.germline.pass.vcf.gz --minPosterior=0 --getVariantsFromBAMs=0
+Platypus.py callVariants --bamFiles=!{bamnormal},!{bamtumor1},!{bamtumor2} --refFile=!{input_ref} --regions=!{params.regions} --nCPU=12 --output=!{ID}.coverage.germline.vcf --source=!{germlineVCF} --minPosterior=0 --getVariantsFromBAMs=0
+'''
 }
 
+input_somaticCoverage=bams_TT2.joint(VCF_somatic_passCoverage)
 process somatic_tumor_coverage {
-
    input:
-  file i from patient_bams
-  file input_ref
-  file input_regions
-  file j from VCF_somatic_pass
+  set val(ID),file (bamtumor1),file(bamtumor2), file(somaticVCF1),file(somaticVCF2) from input_somaticCoverage
+  file ref
+  file regions
+  
   
   output:
-  file("${i}.coverage.germline.vcf") into coverage_somatic
+  set val(ID),file("${bamtumor1.baseName}.vcf"),file("${bamtumor2.baseName}.vcf") into coverage_somatic
   
   shell :
   '''
-  if(i==j){
-  Platypus.py callVariants --bamFiles=!{i}[1][0] --refFile=!{input_ref} --regions=!{input_regions} --nCPU=12 --output=!{coverage_somatic}/!{i}.coverage.somatic.vcf --source=!{VCF_somatic_pass}/!{i}.germline.pass.vcf --minPosterior=0 --getVariantsFromBAMs=0
-  }
+Platypus.py callVariants --bamFiles=!{bamtumor1} --refFile=!{params.ref} --regions=!{params.regions} --nCPU=12 --output=!{bamtumor1.baseName}.vcf --source=!{somaticVCF2} --minPosterior=0 --getVariantsFromBAMs=0
+Platypus.py callVariants --bamFiles=!{bamtumor2} --refFile=!{params.ref} --regions=!{params.regions} --nCPU=12 --output=!{bamtumor2.baseName}.vcf --source=!{somaticVCF1} --minPosterior=0 --getVariantsFromBAMs=0
+
   '''
-}
-
-
-
-
-process split_VCF_somatic {
-
-   input:
-  file i from coverage_somatic
-  
-  output:
-  file("${i}.vcf") into split_vcf_germline
-  
-  shell :
-  
-
-declare -a arr=("chr1" "chr2" "chr3" "chr4" "chr5" "chr6" "chr7" "chr8" "chr9" "chr10" "chr11" "chr12" "chr13" "chr14" "chr15" "chr16" "chr17" "chr18" "chr19" "chr20" "chr21" "chr22" "chrX" "chrY")
-
-for( j in "${arr[@]}"){
-do
-   tabix -h $1 $i > $1.$j.vcf
-done
-}
-
-
-
-
-
-process copy_numbers {
-  // run falcon
-}
-
-process copy_numbers_epsilon {
-  // run falcon_epsilon (to compute errors)
-}
-
-process compile_copy_numbers {
-  // compile falcon results in a TSV file
-}
-
-process MCMC {
-  // canopy pre-clustering & MCMC sampling
-}
-
-process tree {
-  // canopy tree
-}
-
-process filter {
-  // filter informative events
 }
