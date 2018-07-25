@@ -109,9 +109,10 @@ process germline_calling {
   ID_tag=!{ID}  
   
   runDir="results/variants/"
-  !{strelka_germline} !{normal} --referenceFasta !{params.ref}  --runDir strelkaAnalysis --callRegions=!{params.regions}
+  !{strelka_germline} --bam=!{normal} --referenceFasta=!{params.ref}  --runDir strelkaAnalysis --callRegions=!{params.regions}
   cd strelkaAnalysis
-  ./runWorkflow.py -m local -j !{params.cpu} -g !{params.mem}
+  ./runWorkflow.py -m local -j !{params.cpu} 
+  
 
  {params.bcftools} view -i'FILTER="PASS"' !{normal.baseName}.vcf.gz  > !{normal.baseName}.vcf.gz
   '''
@@ -131,7 +132,8 @@ process germline_tumor_coverage {
 
 shell :
 '''
-
+ !{strelka_germline} --bam=!{bamtumor1},!{bamtumor2},!{bamnormal} --forcedGT !{germlineVCF}  --referenceFasta=!{params.ref}   --callRegions=!{params.regions}
+ 
 '''
 }
 
@@ -212,6 +214,7 @@ process somatic_tumor_coverage {
   
   shell :
   '''
+ !{strelka_somatic} --bam=!{bamtumor1},!{bamtumor2} --forcedGT !{somaticVCF1} --forcedGT !{somaticVCF2}  --referenceFasta=!{params.ref}   --callRegions=!{params.regions}
 
   '''
 }
