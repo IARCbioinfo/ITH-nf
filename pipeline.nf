@@ -109,7 +109,7 @@ process germline_calling {
   ID_tag=!{ID}  
   
   runDir="results/variants/"
-  !{strelka_germline} --bam=!{normal} --referenceFasta=!{params.ref}  --runDir strelkaAnalysis --callRegions=!{params.regions}
+  !{strelka_germline} --bam=!{normal} --referenceFasta=!{params.ref}  --runDir strelkaAnalysis --callRegions=!{params.regions} --runDir strelkaAnalysis
   cd strelkaAnalysis
   ./runWorkflow.py -m local -j !{params.cpu} 
   
@@ -132,7 +132,7 @@ process germline_tumor_coverage {
 
 shell :
 '''
- !{strelka_germline} --bam=!{bamtumor1},!{bamtumor2},!{bamnormal} --forcedGT !{germlineVCF}  --referenceFasta=!{params.ref}   --callRegions=!{params.regions}
+ !{strelka_germline} --bam=!{bamtumor1},!{bamtumor2},!{bamnormal} --forcedGT !{germlineVCF}  --referenceFasta=!{params.ref}   --callRegions=!{params.regions} --runDir strelkaAnalysis
  
 '''
 }
@@ -156,7 +156,7 @@ process somatic_calling_T1 {
   shell:
   '''
   ID_tag=!{ID}
- !{strelka_somatic} --tumorBam=!{tumor1} --normalBam=!{normal} --referenceFasta=!{params.ref} --callRegions=!{params.regions} --callMemMb=1024  
+ !{strelka_somatic} --tumorBam=!{tumor1} --normalBam=!{normal} --referenceFasta=!{params.ref} --callRegions=!{params.regions} --callMemMb=1024   --runDir strelkaAnalysis
  cd strelkaAnalysis
      ./runWorkflow.py -m local -j !{params.cpu} -g !{params.mem}
      cd results/variants
@@ -184,7 +184,7 @@ process somatic_calling_T2 {
   shell:
   '''
   ID_tag=!{ID}
- !{strelka_somatic} --tumorBam=!{tumor2} --normalBam=!{normal} --referenceFasta=!{params.ref} --callRegions=!{params.regions} --callMemMb=1024  -m local -j 28
+ !{strelka_somatic} --tumorBam=!{tumor2} --normalBam=!{normal} --referenceFasta=!{params.ref} --callRegions=!{params.regions} --callMemMb=1024  --runDir strelkaAnalysis
   cd strelkaAnalysis
      ./runWorkflow.py -m local -j !{params.cpu} -g !{params.mem}
      cd results/variants
@@ -214,7 +214,7 @@ process somatic_tumor_coverage {
   
   shell :
   '''
- !{strelka_somatic} --bam=!{bamtumor1},!{bamtumor2} --forcedGT !{somaticVCF1} --forcedGT !{somaticVCF2}  --referenceFasta=!{params.ref}   --callRegions=!{params.regions}
+ !{strelka_somatic} --bam=!{bamtumor1},!{bamtumor2} --forcedGT !{somaticVCF1} --forcedGT !{somaticVCF2}  --referenceFasta=!{params.ref}   --callRegions=!{params.regions} --runDir strelkaAnalysis
 
   '''
 }
