@@ -18,7 +18,7 @@
 params.help = null
 params.ref = null
 params.regions = null
-params.cpu            		= "2"
+params.cpu            		= "28"
 params.mem           		 = "20"
 params.strelka  = null
 params.bcftools   = null
@@ -58,7 +58,7 @@ if (params.help) {
     log.info "--regions             FILE                 Regions "
     log.info ""
     log.info "Optional arguments:"
-    log.info "--cpu                  INTEGER              Number of cpu to use (default=2)"
+    log.info "--cpu                  INTEGER              Number of cpu to use (default=28)"
     log.info "--output_folder        PATH                 Output directory for html and zip files (default=fastqc_ouptut)"
     log.info "--config               FILE                 Use custom configuration file"
     log.info ""
@@ -93,6 +93,8 @@ bams_T2N = Channel.fromPath(correpondance).splitCsv(header: true, sep: '\t', str
 	
 
 
+
+
 strelka_germline= params.strelka + '/bin/configureStrelkaGermlineWorkflow.py' 		
 		
 process germline_calling {
@@ -103,18 +105,26 @@ process germline_calling {
 
   output:
   set val(ID_tag),file("${normal.baseName}.vcf.gz") into VCF_germline
+  set val(ID_tag),file("${normal.baseName}.variants.vcf.gz") into VCF_germlineVariants
+  set val(ID_tag), file("${normal.baseName}.vcf.gz.tbi"), file("${normal.baseName}.variants.vcf.gz.tbi") into TBI_Germline
 
   shell:
   '''
   ID_tag=!{ID}  
   
   runDir="results/variants/"
-  !{strelka_germline} --bam=!{normal} --referenceFasta=!{params.ref}  --runDir strelkaAnalysis --callRegions=!{params.regions} --runDir strelkaAnalysis
+  !{strelka_germline} --bam !{normal} --referenceFasta !{params.ref}   --callRegions !{params.regions} --runDir strelkaAnalysis
   cd strelkaAnalysis
   ./runWorkflow.py -m local -j !{params.cpu} 
   
+  mv  genome.vcf.gz !{normal.baseName}.vcf.gz
+  mv  variants.vcf.gz !{normal.baseName}.variants.vcf.gz
+  mv  genome.vcf.gz.tbi !{normal.baseName}.vcf.gz.tbi
+  mv  variants.vcf.gz.tbi !{normal.baseName}.variants.vcf.gz.tbi
 
- {params.bcftools} view -i'FILTER="PASS"' !{normal.baseName}.vcf.gz  > !{normal.baseName}.vcf.gz
+{params.bcftools} norm  -f !{normal.baseName}.vcf.gz 
+{params.bcftools} view -i'FILTER="PASS"' !{normal.baseName}.vcf.gz  > !{normal.baseName}.vcf.gz
+!{params.tabix} -p vcf !{normal.baseName}.vcf.gz
   '''
 }
 
@@ -136,8 +146,6 @@ shell :
  
 '''
 }
-
-
 
 
 
@@ -165,8 +173,13 @@ process somatic_calling_T1 {
      mv somatic.indels.vcf.gz.tbi !{tumor1.baseName}.somatic.indels.vcf.gz.tbi
      mv somatic.snvs.vcf.gz.tbi !{tumor1.baseName}.somatic.snvs.vcf.gz.tbi
      
-    {params.bcftools} view -i'FILTER="PASS"' !{tumor1.baseName}.somatic.indels.vcf.gz  > !{tumor1.baseName}.somatic.indels.vcf.gz
-    {params.bcftools} view -i'FILTER="PASS"' !{tumor1.baseName}.somatic.snvs.vcf.gz  >  !{tumor1.baseName}.somatic.snvs.vcf.gz
+     {params.bcftools} norm  -f !{tumor1.baseName}.somatic.indels.vcf.gz
+    !{params.bcftools} view -i'FILTER="PASS"' !{tumor1.baseName}.somatic.indels.vcf.gz  > !{tumor1.baseName}.somatic.indels.vcf.gz
+    !{params.tabix} -p vcf !{tumor1.baseName}.somatic.indels.vcf.gz
+    
+    {params.bcftools} norm  -f !{tumor1.baseName}.somatic.snvs.vcf.gz
+    !{params.bcftools} view -i'FILTER="PASS"' !{tumor1.baseName}.somatic.snvs.vcf.gz  >  !{tumor1.baseName}.somatic.snvs.vcf.gz
+    !{params.tabix} -p vcf !{tumor1.baseName}.somatic.snvs.vcf.gz
   '''
 }
 
@@ -192,9 +205,15 @@ process somatic_calling_T2 {
      mv somatic.snvs.vcf.gz !{tumor2.baseName}.somatic.snvs.vcf.gz
      mv somatic.indels.vcf.gz.tbi !{tumor2.baseName}.somatic.indels.vcf.gz.tbi
      mv somatic.snvs.vcf.gz.tbi !{tumor2.baseName}.somatic.snvs.vcf.gz.tbi
-     
-    {params.bcftools} view -i'FILTER="PASS"' !{tumor2.baseName}.somatic.indels.vcf.gz  > !{tumor2.baseName}.somatic.indels.vcf.gz
-    {params.bcftools} view -i'FILTER="PASS"' !{tumor2.baseName}.somatic.snvs.vcf.gz  >  !{tumor2.baseName}.somatic.snvs.vcf.gz
+   
+   
+    {params.bcftools} norm  -f !{tumor2.baseName}.somatic.indels.vcf.gz
+    !{params.bcftools} view -i'FILTER="PASS"' !{tumor2.baseName}.somatic.indels.vcf.gz  > !{tumor2.baseName}.somatic.indels.vcf.gz
+    !{params.tabix} -p vcf !{tumor2.baseName}.somatic.indels.vcf.gz
+    
+    {params.bcftools} norm  -f !{tumor2.baseName}.somatic.snvs.vcf.gz
+    !{params.bcftools} view -i'FILTER="PASS"' !{tumor2.baseName}.somatic.snvs.vcf.gz  >  !{tumor2.baseName}.somatic.snvs.vcf.gz
+    !{params.tabix} -p vcf !{tumor2.baseName}.somatic.snvs.vcf.gz
   '''
 }
 
@@ -214,7 +233,7 @@ process somatic_tumor_coverage {
   
   shell :
   '''
- !{strelka_somatic} --bam=!{bamtumor1},!{bamtumor2} --forcedGT !{somaticVCF1} --forcedGT !{somaticVCF2}  --referenceFasta=!{params.ref}   --callRegions=!{params.regions} --runDir strelkaAnalysis
+ !{strelka_somatic} --tumorBam=!{bamtumor1} --tumorBam !{bamtumor2} --forcedGT !{somaticVCF1} --forcedGT !{somaticVCF2}  --referenceFasta=!{params.ref}   --callRegions=!{params.regions} --runDir strelkaAnalysis
 
   '''
 }
