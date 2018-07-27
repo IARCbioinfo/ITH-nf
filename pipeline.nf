@@ -142,7 +142,7 @@ process germline_tumor_coverage {
 
 shell :
 '''
- !{strelka_germline} --bam=!{bamtumor1},!{bamtumor2},!{bamnormal} --forcedGT !{germlineVCF}  --referenceFasta=!{params.ref}   --callRegions=!{params.regions} --runDir strelkaAnalysis
+ !{strelka_germline} --bam !{bamtumor1} --bam !{bamtumor2} --bam !{bamnormal} --forcedGT !{germlineVCF}  --referenceFasta=!{params.ref}   --callRegions=!{params.regions} --runDir strelkaAnalysis
  
 '''
 }
