@@ -233,7 +233,7 @@ process somatic_tumor_coverage {
   
   shell :
   '''
- !{strelka_somatic} --tumorBam=!{bamtumor1} --tumorBam !{bamtumor2} --forcedGT !{somaticVCF1} --forcedGT !{somaticVCF2}  --referenceFasta=!{params.ref}   --callRegions=!{params.regions} --runDir strelkaAnalysis
+ !{strelka_germloine} --bam=!{bamtumor1} --bam !{bamtumor2} --forcedGT !{somaticVCF1} --forcedGT !{somaticVCF2}  --referenceFasta=!{params.ref}   --callRegions=!{params.regions} --runDir strelkaAnalysis
 
   '''
 }
