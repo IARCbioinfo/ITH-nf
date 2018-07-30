@@ -142,7 +142,7 @@ process germline_tumor_coverage {
 
 shell :
 '''
- !{strelka_germline} --bam !{bamtumor1} --bam !{bamtumor2} --bam !{bamnormal} --forcedGT !{germlineVCF}  --referenceFasta=!{params.ref}   --callRegions=!{params.regions} --runDir strelkaAnalysis
+ !{strelka_germline} --bam !{bamtumor1} --bam !{bamtumor2} --bam !{bamnormal} --forcedGT !{germlineVCF}  --referenceFasta=!{params.ref}   --callRegions=!{params.regions} --runDir strelkaAnalysisCoverageGermline
  
 '''
 }
@@ -166,7 +166,7 @@ process somatic_calling_T1 {
   ID_tag=!{ID}
  !{strelka_somatic} --tumorBam=!{tumor1} --normalBam=!{normal} --referenceFasta=!{params.ref} --callRegions=!{params.regions} --callMemMb=1024   --runDir strelkaAnalysis
  cd strelkaAnalysis
-     ./runWorkflow.py -m local -j !{params.cpu} -g !{params.mem}
+     ./runWorkflow.py -m local -j 28
      cd results/variants
      mv somatic.indels.vcf.gz !{tumor1.baseName}.somatic.indels.vcf.gz
      mv somatic.snvs.vcf.gz !{tumor1.baseName}.somatic.snvs.vcf.gz
@@ -199,7 +199,7 @@ process somatic_calling_T2 {
   ID_tag=!{ID}
  !{strelka_somatic} --tumorBam=!{tumor2} --normalBam=!{normal} --referenceFasta=!{params.ref} --callRegions=!{params.regions} --callMemMb=1024  --runDir strelkaAnalysis
   cd strelkaAnalysis
-     ./runWorkflow.py -m local -j !{params.cpu} -g !{params.mem}
+     ./runWorkflow.py -m local -j 28 
      cd results/variants
      mv somatic.indels.vcf.gz !{tumor2.baseName}.somatic.indels.vcf.gz
      mv somatic.snvs.vcf.gz !{tumor2.baseName}.somatic.snvs.vcf.gz
@@ -229,11 +229,25 @@ process somatic_tumor_coverage {
   
   
   output:
-  set val(ID),file("${bamtumor1.baseName}.vcf"),file("${bamtumor2.baseName}.vcf") into coverage_somatic
-  
+  set val(ID),file("${ID}_covargeSomatic_T1.vcf.gz"),file("${ID}_covargeSomatic_T2.vcf.gz") into VCF_coverage_somatic
+  set val(ID),file("${ID}_covargeSomatic_T1.vcf.gz.tbi"),file("${ID}_covargeSomatic_T2.vcf.gz.tbi") into TBI_coverage_somatic
+  set val(ID),file("variants.vcf.gz"),file("variants.vcf.gz.tbi") into variants_coverage_somatic
+
   shell :
   '''
- !{strelka_germloine} --bam=!{bamtumor1} --bam !{bamtumor2} --forcedGT !{somaticVCF1} --forcedGT !{somaticVCF2}  --referenceFasta=!{params.ref}   --callRegions=!{params.regions} --runDir strelkaAnalysis
+ !{strelka_germline} --bam=!{bamtumor1} --bam !{bamtumor2} --forcedGT !{somaticVCF1} --forcedGT !{somaticVCF2}  --referenceFasta=!{params.ref}   --callRegions=!{params.regions} --runDir strelkaAnalysisCoverageSomatic
+ cd strelkaAnalysisCoverageSomatic
+     ./runWorkflow.py -m local -j 28
+     mv genome.S1.vcf.gz !{ID}_covargeSomatic_T1.vcf.gz
+     mv genome.S1.vcf.gz.tbi !{ID}_covargeSomatic_T1.vcf.gz.tbi
+     mv genome.S2.vcf.gz !{ID}_covargeSomatic_T2.vcf.gz
+     mv genome.S2.vcf.gz.tbi !{ID}_covargeSomatic_T2.vcf.gz.tbi
+     
+     
 
   '''
 }
+
+
+
+ 
