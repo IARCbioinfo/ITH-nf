@@ -123,7 +123,7 @@ process germline_calling {
   mv  variants.vcf.gz.tbi !{normal.baseName}.variants.vcf.gz.tbi
 
 {params.bcftools} norm  -f !{normal.baseName}.vcf.gz 
-{params.bcftools} view -i'FILTER="PASS"' !{normal.baseName}.vcf.gz  > !{normal.baseName}.vcf.gz
+{params.bcftools} view -i'FILTER="PASS"' !{normal.baseName}.vcf.gz  > !{normal.baseName}.vcf
 !{params.tabix} -p vcf !{normal.baseName}.vcf.gz
   '''
 }
@@ -143,7 +143,12 @@ process germline_tumor_coverage {
 shell :
 '''
  !{strelka_germline} --bam !{bamtumor1} --bam !{bamtumor2} --bam !{bamnormal} --forcedGT !{germlineVCF}  --referenceFasta=!{params.ref}   --callRegions=!{params.regions} --runDir strelkaAnalysisCoverageGermline
- 
+ cd strelkaAnalysisCoverageGermline
+     ./runWorkflow.py -m local -j 28
+     mv genome.vcf.gz !{ID}_covargeGermline.vcf.gz
+     mv genome.S1.vcf.gz.tbi !{ID}_covargeGermline.vcf.gz.tbi
+
+     
 '''
 }
 
@@ -173,11 +178,11 @@ process somatic_calling_T1 {
      mv somatic.indels.vcf.gz.tbi !{tumor1.baseName}.somatic.indels.vcf.gz.tbi
      mv somatic.snvs.vcf.gz.tbi !{tumor1.baseName}.somatic.snvs.vcf.gz.tbi
      
-     {params.bcftools} norm  -f !{tumor1.baseName}.somatic.indels.vcf.gz
+     {params.bcftools} norm  -f !{tumor1.baseName}.somatic.indels.vcf.gz -o !{tumor1.baseName}.somatic.indels.vcf.gz
     !{params.bcftools} view -i'FILTER="PASS"' !{tumor1.baseName}.somatic.indels.vcf.gz  > !{tumor1.baseName}.somatic.indels.vcf.gz
     !{params.tabix} -p vcf !{tumor1.baseName}.somatic.indels.vcf.gz
     
-    {params.bcftools} norm  -f !{tumor1.baseName}.somatic.snvs.vcf.gz
+    {params.bcftools} norm  -f !{tumor1.baseName}.somatic.snvs.vcf.gz -o !{tumor1.baseName}.somatic.snvs.vcf.gz
     !{params.bcftools} view -i'FILTER="PASS"' !{tumor1.baseName}.somatic.snvs.vcf.gz  >  !{tumor1.baseName}.somatic.snvs.vcf.gz
     !{params.tabix} -p vcf !{tumor1.baseName}.somatic.snvs.vcf.gz
   '''
@@ -207,11 +212,11 @@ process somatic_calling_T2 {
      mv somatic.snvs.vcf.gz.tbi !{tumor2.baseName}.somatic.snvs.vcf.gz.tbi
    
    
-    {params.bcftools} norm  -f !{tumor2.baseName}.somatic.indels.vcf.gz
+    {params.bcftools} norm  -f !{tumor2.baseName}.somatic.indels.vcf.gz -o !{tumor2.baseName}.somatic.indels.vcf.gz
     !{params.bcftools} view -i'FILTER="PASS"' !{tumor2.baseName}.somatic.indels.vcf.gz  > !{tumor2.baseName}.somatic.indels.vcf.gz
     !{params.tabix} -p vcf !{tumor2.baseName}.somatic.indels.vcf.gz
     
-    {params.bcftools} norm  -f !{tumor2.baseName}.somatic.snvs.vcf.gz
+    {params.bcftools} norm  -f !{tumor2.baseName}.somatic.snvs.vcf.gz -o !{tumor2.baseName}.somatic.snvs.vcf.gz
     !{params.bcftools} view -i'FILTER="PASS"' !{tumor2.baseName}.somatic.snvs.vcf.gz  >  !{tumor2.baseName}.somatic.snvs.vcf.gz
     !{params.tabix} -p vcf !{tumor2.baseName}.somatic.snvs.vcf.gz
   '''
@@ -243,8 +248,6 @@ process somatic_tumor_coverage {
      mv genome.S2.vcf.gz !{ID}_covargeSomatic_T2.vcf.gz
      mv genome.S2.vcf.gz.tbi !{ID}_covargeSomatic_T2.vcf.gz.tbi
      
-     
-
   '''
 }
 
