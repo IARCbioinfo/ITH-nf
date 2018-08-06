@@ -69,24 +69,24 @@ if (params.help) {
 
 ref = file(params.ref)
 regions = 	file(params.regions)
-correpondance = file(params.correpondance)
+correspondance = file(params.corrsepondance)
 
 
 
-bams_TTN= Channel.fromPath(correpondance).splitCsv(header: true, sep: '\t', strip: true)
+bams_TTN= Channel.fromPath(correspondance).splitCsv(header: true, sep: '\t', strip: true)
 		.map{row -> [ row.ID,file(params.bam_folder + "/" + row.tumor1),file(params.bam_folder + "/" + row.tumor2),file(params.bam_folder + "/" + row.normal) ]}
 
 
-(bams_TT,bams_TT2) =  Channel.fromPath(correpondance).splitCsv(header: true, sep: '\t', strip: true)
+(bams_TT,bams_TT2) =  Channel.fromPath(correspondance).splitCsv(header: true, sep: '\t', strip: true)
 		.map{row -> [ row.ID,file(params.bam_folder + "/" + row.tumor1),file(params.bam_folder + "/" + row.tumor2) ]}.into(2)
 		
-bams_N = Channel.fromPath(correpondance).splitCsv(header: true, sep: '\t', strip: true)
+bams_N = Channel.fromPath(correspondance).splitCsv(header: true, sep: '\t', strip: true)
 		.map{row -> [ row.ID,file(params.bam_folder + "/" + row.normal) ]}
 		
-bams_T1N = Channel.fromPath(correpondance).splitCsv(header: true, sep: '\t', strip: true)
+bams_T1N = Channel.fromPath(correspondance).splitCsv(header: true, sep: '\t', strip: true)
 		.map{row -> [ row.ID,file(params.bam_folder + "/" + row.tumor1),file(params.bam_folder + "/" + row.normal) ]}
 
-bams_T2N = Channel.fromPath(correpondance).splitCsv(header: true, sep: '\t', strip: true)
+bams_T2N = Channel.fromPath(correspondance).splitCsv(header: true, sep: '\t', strip: true)
 		.map{row -> [ file(params.bam_folder + "/" + row.tumor2),file(params.bam_folder + "/" + row.normal) ]}
 	
 
