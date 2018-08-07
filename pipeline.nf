@@ -69,7 +69,7 @@ if (params.help) {
 
 ref = file(params.ref)
 regions = 	file(params.regions)
-correspondance = file(params.corrsepondance)
+correspondance = file(params.correspondance)
 
 
 
@@ -111,8 +111,9 @@ process germline_calling {
     
   
   runDir="results/variants/"
-  !{strelka_germline} --bam !{normal} --referenceFasta !{params.ref}   --callRegions !{params.regions} --runDir strelkaAnalysis/!{ID}
-  cd strelkaAnalysis
+  cd !{params.bam_folder}
+  !{strelka_germline} --bam !{normal} --referenceFasta !{params.ref}   --callRegions !{params.regions} --runDir strelkaGermline/!{ID}
+  cd strelkaGermline/!{ID}
   ./runWorkflow.py -m local -j !{params.cpu} 
   
   mv  genome.S1.vcf.gz !{normal.baseName}.vcf.gz
@@ -138,8 +139,8 @@ set val("${ID}"),file("${ID}.vcf") into coverage_germline
 
 shell :
 '''
- !{strelka_germline} --bam !{bamtumor1} --bam !{bamtumor2} --bam !{bamnormal} --forcedGT !{germlineVCF}  --referenceFasta=!{params.ref}   --callRegions=!{params.regions} --runDir strelkaAnalysisCoverageGermline/!{ID}
- cd strelkaAnalysisCoverageGermline
+ !{strelka_germline} --bam !{bamtumor1} --bam !{bamtumor2} --bam !{bamnormal} --forcedGT !{germlineVCF}  --referenceFasta=!{params.ref}   --callRegions=!{params.regions} --runDir strelkaCoverageGermline/!{ID}
+ cd strelkaCoverageGermline/!{ID}
      ./runWorkflow.py -m local -j 28
      mv genome.vcf.gz !{ID}_covargeGermline.vcf.gz
      mv genome.vcf.gz.tbi !{ID}_covargeGermline.vcf.gz.tbi
@@ -159,13 +160,14 @@ process somatic_calling_T1 {
   file regions
 
   output:
-  set val("${ID}"), file 'strelkaAnalysis/results/variants/*.indels.vcf.gz' into VCF_somatic1_indels
-  set val("${ID}"), file 'strelkaAnalysis/results/variants/*.snvs.vcf.gz' into VCF_somatic1_snvs
-  set val("${ID}"), file 'strelkaAnalysis/results/variants/*.tbi' into TBI_somatic1
+  set val("${ID}"), file '*.indels.vcf.gz' into VCF_somatic1_indels
+  set val("${ID}"), file '*.snvs.vcf.gz' into VCF_somatic1_snvs
+  set val("${ID}"), file '*.tbi' into TBI_somatic1
   shell:
   '''
- !{strelka_somatic} --tumorBam=!{tumor1} --normalBam=!{normal} --referenceFasta=!{params.ref} --callRegions=!{params.regions} --callMemMb=1024   --runDir strelkaAnalysis/!{ID}
- cd strelkaAnalysis
+  cd !{params.bam_folder}
+ !{strelka_somatic} --tumorBam=!{tumor1} --normalBam=!{normal} --referenceFasta=!{params.ref} --callRegions=!{params.regions} --callMemMb=1024   --runDir strelkaSomatic1/!{ID}
+ cd strelkaSomatic1/!{ID}
      ./runWorkflow.py -m local -j 28
      cd results/variants
      mv somatic.indels.vcf.gz !{tumor1.baseName}.somatic.indels.vcf.gz
@@ -185,13 +187,14 @@ process somatic_calling_T2 {
   file regions
 
   output:
-set val("${ID}"), file 'strelkaAnalysis/results/variants/*.indels.vcf.gz' into VCF_somatic2_indels
-set val("${ID}"), file 'strelkaAnalysis/results/variants/*.snvs.vcf.gz' into VCF_somatic2_snvs
-set val("${ID}"), file 'strelkaAnalysis/results/variants/*.tbi' into TBI_somatic2
+set val("${ID}"), file '*somatic.indels.vcf.gz' into VCF_somatic2_indels
+set val("${ID}"), file '*.snvs.vcf.gz' into VCF_somatic2_snvs
+set val("${ID}"), file '*.tbi' into TBI_somatic2
   shell:
   '''
- !{strelka_somatic} --tumorBam=!{tumor2} --normalBam=!{normal} --referenceFasta=!{params.ref} --callRegions=!{params.regions} --callMemMb=1024  --runDir strelkaAnalysis/!{ID}
-  cd strelkaAnalysis
+  cd !{params.bam_folder}
+ !{strelka_somatic} --tumorBam=!{tumor2} --normalBam=!{normal} --referenceFasta=!{params.ref} --callRegions=!{params.regions} --callMemMb=1024  --runDir strelkaSomatic2/!{ID}
+  cd strelkaSomatic2/!{ID}
      ./runWorkflow.py -m local -j 28 
      cd results/variants
      mv somatic.indels.vcf.gz !{tumor2.baseName}.somatic.indels.vcf.gz
@@ -221,8 +224,8 @@ set val("${ID}"),file("${ID}_covargeSomatic_T1.vcf.gz"),file("${ID}_covargeSomat
 
   shell :
   '''
- !{strelka_germline} --bam=!{bamtumor1} --bam !{bamtumor2} --forcedGT !{somaticVCF1} --forcedGT !{somaticVCF2}  --referenceFasta=!{params.ref}   --callRegions=!{params.regions} --runDir strelkaAnalysisCoverageSomatic/!{ID}
- cd strelkaAnalysisCoverageSomatic
+ !{strelka_germline} --bam=!{bamtumor1} --bam !{bamtumor2} --forcedGT !{somaticVCF1} --forcedGT !{somaticVCF2}  --referenceFasta=!{params.ref}   --callRegions=!{params.regions} --runDir strelkaCoverageSomatic/!{ID}
+ cd strelkaCoverageSomatic/!{ID}
      ./runWorkflow.py -m local -j 28
      mv genome.S1.vcf.gz !{ID}_covargeSomatic_T1.vcf.gz
      mv genome.S1.vcf.gz.tbi !{ID}_covargeSomatic_T1.vcf.gz.tbi
