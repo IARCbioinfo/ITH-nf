@@ -102,13 +102,13 @@ process germline_calling {
   file regions
 
   output:
-  set val(ID_tag),file("${normal.baseName}.vcf.gz") into VCF_germline
-  set val(ID_tag),file("${normal.baseName}.variants.vcf.gz") into VCF_germlineVariants
-  set val(ID_tag), file("${normal.baseName}.vcf.gz.tbi"), file("${normal.baseName}.variants.vcf.gz.tbi") into TBI_Germline
+  set val("${ID}"),file("${normal.baseName}.vcf.gz") into VCF_germline
+  set val("${ID}"),file("${normal.baseName}.variants.vcf.gz") into VCF_germlineVariants
+  set val("${ID}"), file("${normal.baseName}.vcf.gz.tbi"), file("${normal.baseName}.variants.vcf.gz.tbi") into TBI_Germline
 
   shell:
   '''
-  ID_tag=!{ID}  
+    
   
   runDir="results/variants/"
   !{strelka_germline} --bam !{normal} --referenceFasta !{params.ref}   --callRegions !{params.regions} --runDir strelkaAnalysis/!{ID}
@@ -134,7 +134,7 @@ process germline_tumor_coverage {
 
   
   output:
-  set val(ID),file("${ID}.vcf") into coverage_germline
+set val("${ID}"),file("${ID}.vcf") into coverage_germline
 
 shell :
 '''
@@ -159,12 +159,11 @@ process somatic_calling_T1 {
   file regions
 
   output:
-  set val(ID_tag), file 'strelkaAnalysis/results/variants/*.indels.vcf.gz' into VCF_somatic1_indels
-  set val(ID_tag), file 'strelkaAnalysis/results/variants/*.snvs.vcf.gz' into VCF_somatic1_snvs
-  set val(ID_tag), file 'strelkaAnalysis/results/variants/*.tbi' into TBI_somatic1
+  set val("${ID}"), file 'strelkaAnalysis/results/variants/*.indels.vcf.gz' into VCF_somatic1_indels
+  set val("${ID}"), file 'strelkaAnalysis/results/variants/*.snvs.vcf.gz' into VCF_somatic1_snvs
+  set val("${ID}"), file 'strelkaAnalysis/results/variants/*.tbi' into TBI_somatic1
   shell:
   '''
-  ID_tag=!{ID}
  !{strelka_somatic} --tumorBam=!{tumor1} --normalBam=!{normal} --referenceFasta=!{params.ref} --callRegions=!{params.regions} --callMemMb=1024   --runDir strelkaAnalysis/!{ID}
  cd strelkaAnalysis
      ./runWorkflow.py -m local -j 28
@@ -186,12 +185,11 @@ process somatic_calling_T2 {
   file regions
 
   output:
-  set val(ID_tag), file 'strelkaAnalysis/results/variants/*.indels.vcf.gz' into VCF_somatic2_indels
-  set val(ID_tag), file 'strelkaAnalysis/results/variants/*.snvs.vcf.gz' into VCF_somatic2_snvs
-  set val(ID_tag), file 'strelkaAnalysis/results/variants/*.tbi' into TBI_somatic2
+set val("${ID}"), file 'strelkaAnalysis/results/variants/*.indels.vcf.gz' into VCF_somatic2_indels
+set val("${ID}"), file 'strelkaAnalysis/results/variants/*.snvs.vcf.gz' into VCF_somatic2_snvs
+set val("${ID}"), file 'strelkaAnalysis/results/variants/*.tbi' into TBI_somatic2
   shell:
   '''
-  ID_tag=!{ID}
  !{strelka_somatic} --tumorBam=!{tumor2} --normalBam=!{normal} --referenceFasta=!{params.ref} --callRegions=!{params.regions} --callMemMb=1024  --runDir strelkaAnalysis/!{ID}
   cd strelkaAnalysis
      ./runWorkflow.py -m local -j 28 
@@ -217,9 +215,9 @@ process somatic_tumor_coverage {
   
   
   output:
-  set val(ID),file("${ID}_covargeSomatic_T1.vcf.gz"),file("${ID}_covargeSomatic_T2.vcf.gz") into VCF_coverage_somatic
-  set val(ID),file("${ID}_covargeSomatic_T1.vcf.gz.tbi"),file("${ID}_covargeSomatic_T2.vcf.gz.tbi") into TBI_coverage_somatic
-  set val(ID),file("variants.vcf.gz"),file("variants.vcf.gz.tbi") into variants_coverage_somatic
+set val("${ID}"),file("${ID}_covargeSomatic_T1.vcf.gz"),file("${ID}_covargeSomatic_T2.vcf.gz") into VCF_coverage_somatic
+ set val("${ID}"),file("${ID}_covargeSomatic_T1.vcf.gz.tbi"),file("${ID}_covargeSomatic_T2.vcf.gz.tbi") into TBI_coverage_somatic
+ set val("${ID}"),file("variants.vcf.gz"),file("variants.vcf.gz.tbi") into variants_coverage_somatic
 
   shell :
   '''
