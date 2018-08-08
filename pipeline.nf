@@ -115,11 +115,12 @@ process germline_calling {
   !{strelka_germline} --bam !{normal} --referenceFasta !{params.ref}   --callRegions !{params.regions} --runDir strelkaGermline/!{ID}
   cd strelkaGermline/!{ID}
   ./runWorkflow.py -m local -j !{params.cpu} 
-  
-  mv  genome.S1.vcf.gz !{normal.baseName}.vcf.gz
-  mv  variants.vcf.gz !{normal.baseName}.variants.vcf.gz
-  mv  genome.S1.vcf.gz.tbi !{normal.baseName}.vcf.gz.tbi
-  mv  variants.vcf.gz.tbi !{normal.baseName}.variants.vcf.gz.tbi
+cd results/variants
+mkdir !{params.output_folder}/!{ID}_calling_germline
+  mv  genome.S1.vcf.gz !{params.output_folder}/!{ID}_calling_germline/!{normal.baseName}.vcf.gz
+  mv  variants.vcf.gz !{params.output_folder}/!{ID}_calling_germline/!{normal.baseName}.variants.vcf.gz
+  mv  genome.S1.vcf.gz.tbi !{params.output_folder}/!{ID}_calling_germline/!{normal.baseName}.vcf.gz.tbi
+  mv  variants.vcf.gz.tbi !{params.output_folder}/!{ID}_calling_germline/!{normal.baseName}.variants.vcf.gz.tbi
 
 
   '''
@@ -170,10 +171,11 @@ process somatic_calling_T1 {
  cd strelkaSomatic1/!{ID}
      ./runWorkflow.py -m local -j 28
      cd results/variants
-     mv somatic.indels.vcf.gz !{tumor1.baseName}.somatic.indels.vcf.gz
-     mv somatic.snvs.vcf.gz !{tumor1.baseName}.somatic.snvs.vcf.gz
-     mv somatic.indels.vcf.gz.tbi !{tumor1.baseName}.somatic.indels.vcf.gz.tbi
-     mv somatic.snvs.vcf.gz.tbi !{tumor1.baseName}.somatic.snvs.vcf.gz.tbi
+     mkdir !{params.output_folder}/!{ID}_calling_somatic_T1
+     mv somatic.indels.vcf.gz !{params.output_folder}/!{ID}_calling_somatic_T1/!{tumor1.baseName}.somatic.indels.vcf.gz
+     mv somatic.snvs.vcf.gz !{params.output_folder}/!{ID}_calling_somatic_T1/!{tumor1.baseName}.somatic.snvs.vcf.gz
+     mv somatic.indels.vcf.gz.tbi !{params.output_folder}/!{ID}_calling_somatic_T1/!{tumor1.baseName}.somatic.indels.vcf.gz.tbi
+     mv somatic.snvs.vcf.gz.tbi !{params.output_folder}/!{ID}_calling_somatic_T1/!{tumor1.baseName}.somatic.snvs.vcf.gz.tbi
      
      
   '''
@@ -197,10 +199,11 @@ set val("${ID}"), file '*.tbi' into TBI_somatic2
   cd strelkaSomatic2/!{ID}
      ./runWorkflow.py -m local -j 28 
      cd results/variants
-     mv somatic.indels.vcf.gz !{tumor2.baseName}.somatic.indels.vcf.gz
-     mv somatic.snvs.vcf.gz !{tumor2.baseName}.somatic.snvs.vcf.gz
-     mv somatic.indels.vcf.gz.tbi !{tumor2.baseName}.somatic.indels.vcf.gz.tbi
-     mv somatic.snvs.vcf.gz.tbi !{tumor2.baseName}.somatic.snvs.vcf.gz.tbi
+     mkdir !{params.output_folder}/!{ID}_calling_somatic_T2
+     mv somatic.indels.vcf.gz !{params.output_folder}/!{ID}_calling_somatic_T2/!{tumor2.baseName}.somatic.indels.vcf.gz
+     mv somatic.snvs.vcf.gz !{params.output_folder}/!{ID}_calling_somatic_T2/!{tumor2.baseName}.somatic.snvs.vcf.gz
+     mv somatic.indels.vcf.gz.tbi !{params.output_folder}/!{ID}_calling_somatic_T2/!{tumor2.baseName}.somatic.indels.vcf.gz.tbi
+     mv somatic.snvs.vcf.gz.tbi !{params.output_folder}/!{ID}_calling_somatic_T2/!{tumor2.baseName}.somatic.snvs.vcf.gz.tbi
    
    
   '''
@@ -227,10 +230,12 @@ set val("${ID}"),file("${ID}_covargeSomatic_T1.vcf.gz"),file("${ID}_covargeSomat
  !{strelka_germline} --bam=!{bamtumor1} --bam !{bamtumor2} --forcedGT !{somaticVCF1} --forcedGT !{somaticVCF2}  --referenceFasta=!{params.ref}   --callRegions=!{params.regions} --runDir strelkaCoverageSomatic/!{ID}
  cd strelkaCoverageSomatic/!{ID}
      ./runWorkflow.py -m local -j 28
-     mv genome.S1.vcf.gz !{ID}_covargeSomatic_T1.vcf.gz
-     mv genome.S1.vcf.gz.tbi !{ID}_covargeSomatic_T1.vcf.gz.tbi
-     mv genome.S2.vcf.gz !{ID}_covargeSomatic_T2.vcf.gz
-     mv genome.S2.vcf.gz.tbi !{ID}_covargeSomatic_T2.vcf.gz.tbi
+     cd results/variants
+     mkdir !{params.output_folder}/!{ID}_coverage_somatic
+     mv genome.S1.vcf.gz !{params.output_folder}/!{ID}_coverage_somatic/!{ID}_covargeSomatic_T1.vcf.gz
+     mv genome.S1.vcf.gz.tbi !{params.output_folder}/!{ID}_coverage_somatic/!{ID}_covargeSomatic_T1.vcf.gz.tbi
+     mv genome.S2.vcf.gz !{params.output_folder}/!{ID}_coverage_somatic/!{ID}_covargeSomatic_T2.vcf.gz
+     mv genome.S2.vcf.gz.tbi !{params.output_folder}/!{ID}_coverage_somatic/!{ID}_covargeSomatic_T2.vcf.gz.tbi
      
   '''
 }
