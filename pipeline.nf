@@ -116,7 +116,9 @@ process germline_calling {
   ./runWorkflow.py -m local -j !{params.cpu} 
 
 mkdir !{params.output_folder}/!{ID}_calling_germline
-mv results/variants !{params.output_folder}/!{ID}_calling_germline
+mv results !{params.output_folder}/!{ID}_calling_germline
+cd !{params.output_folder}/!{ID}_calling_germline
+
   mv  genome.S1.vcf.gz !{normal.baseName}.vcf.gz
   mv  variants.vcf.gz !{normal.baseName}.variants.vcf.gz
   mv  genome.S1.vcf.gz.tbi !{normal.baseName}.vcf.gz.tbi
@@ -173,7 +175,8 @@ set  val( ID) ,file (tumor1), file(normal) from bams_T1N
      ./runWorkflow.py -m local -j 28
 
      mkdir !{params.output_folder}/!{ID}_calling_somatic_T1
-    mv results/variants !{params.output_folder}/!{ID}_calling_somatic_T1        
+    mv results !{params.output_folder}/!{ID}_calling_somatic_T1     
+    cd    !{params.output_folder}/!{ID}_calling_somatic_T1  
       
      !{params.bcftools} view -i'FILTER="PASS"' somatic.indels.vcf.gz > somatic.indels.vcf.gz
      mv somatic.indels.vcf.gz !{params.output_folder}/!{ID}_calling_somatic_T1/!{tumor1.baseName}.somatic.indels.vcf.gz
@@ -212,7 +215,8 @@ set  val( ID) ,file (tumor2), file(normal) from bams_T2N
      ./runWorkflow.py -m local -j 28
 
      mkdir !{params.output_folder}/!{ID}_calling_somatic_T2
-    mv results/variants !{params.output_folder}/!{ID}_calling_somatic_T2       
+    mv results !{params.output_folder}/!{ID}_calling_somatic_T2        
+      cd !{params.output_folder}/!{ID}_calling_somatic_T2 
       
      !{params.bcftools} view -i'FILTER="PASS"' somatic.indels.vcf.gz > somatic.indels.vcf.gz
      mv somatic.indels.vcf.gz !{params.output_folder}/!{ID}_calling_somatic_T2/!{tumor1.baseName}.somatic.indels.vcf.gz
@@ -249,12 +253,15 @@ set val(ID),file("${ID}_covargeSomatic_T1.vcf.gz"),file("${ID}_covargeSomatic_T2
  !{strelka_germline} --bam=!{bamtumor1} --bam !{bamtumor2} --forcedGT !{somaticVCF1} --forcedGT !{somaticVCF2}  --referenceFasta=!{params.ref}   --callRegions=!{params.regions} --runDir strelkaCoverageSomatic/!{ID}
  cd strelkaCoverageSomatic/!{ID}
      ./runWorkflow.py -m local -j 28
-     cd results/variants
+     
      mkdir !{params.output_folder}/!{ID}_coverage_somatic
-     mv genome.S1.vcf.gz !{params.output_folder}/!{ID}_coverage_somatic/!{ID}_covargeSomatic_T1.vcf.gz
-     mv genome.S1.vcf.gz.tbi !{params.output_folder}/!{ID}_coverage_somatic/!{ID}_covargeSomatic_T1.vcf.gz.tbi
-     mv genome.S2.vcf.gz !{params.output_folder}/!{ID}_coverage_somatic/!{ID}_covargeSomatic_T2.vcf.gz
-     mv genome.S2.vcf.gz.tbi !{params.output_folder}/!{ID}_coverage_somatic/!{ID}_covargeSomatic_T2.vcf.gz.tbi
+     mv results/variants !{params.output_folder}/!{ID}_coverage_somatic
+     cd !{params.output_folder}/!{ID}_coverage_somatic
+     
+     mv genome.S1.vcf.gz !{ID}_covargeSomatic_T1.vcf.gz
+     mv genome.S1.vcf.gz.tbi !{ID}_covargeSomatic_T1.vcf.gz.tbi
+     mv genome.S2.vcf.gz !{ID}_covargeSomatic_T2.vcf.gz
+     mv genome.S2.vcf.gz.tbi !{ID}_covargeSomatic_T2.vcf.gz.tbi
      
   '''
 }
