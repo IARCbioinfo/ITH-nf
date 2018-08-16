@@ -179,13 +179,13 @@ set  val( ID) ,file (tumor1), file(normal) from bams_T1N
     cd    !{params.output_folder}/!{ID}_calling_somatic_T1  
       
      !{params.bcftools} view -i'FILTER="PASS"' somatic.indels.vcf.gz > somatic.indels.vcf.gz
-     mv somatic.indels.vcf.gz !{params.output_folder}/!{ID}_calling_somatic_T1/!{tumor1.baseName}.somatic.indels.vcf.gz
+     mv somatic.indels.vcf.gz !{tumor1.baseName}.somatic.indels.vcf.gz
      
      !{params.bcftools} view -i'FILTER="PASS"' somatic.snvs.vcf.gz >  somatic.snvs.vcf.gz
-     mv somatic.snvs.vcf.gz !{params.output_folder}/!{ID}_calling_somatic_T1/!{tumor1.baseName}.somatic.snvs.vcf.gz
+     mv somatic.snvs.vcf.gz !{tumor1.baseName}.somatic.snvs.vcf.gz
      
-     mv somatic.indels.vcf.gz.tbi !{params.output_folder}/!{ID}_calling_somatic_T1/!{tumor1.baseName}.somatic.indels.vcf.gz.tbi
-     mv somatic.snvs.vcf.gz.tbi !{params.output_folder}/!{ID}_calling_somatic_T1/!{tumor1.baseName}.somatic.snvs.vcf.gz.tbi
+     mv somatic.indels.vcf.gz.tbi !{tumor1.baseName}.somatic.indels.vcf.gz.tbi
+     mv somatic.snvs.vcf.gz.tbi !{tumor1.baseName}.somatic.snvs.vcf.gz.tbi
      
      
   '''
@@ -219,13 +219,13 @@ set  val( ID) ,file (tumor2), file(normal) from bams_T2N
       cd !{params.output_folder}/!{ID}_calling_somatic_T2 
       
      !{params.bcftools} view -i'FILTER="PASS"' somatic.indels.vcf.gz > somatic.indels.vcf.gz
-     mv somatic.indels.vcf.gz !{params.output_folder}/!{ID}_calling_somatic_T2/!{tumor1.baseName}.somatic.indels.vcf.gz
+     mv somatic.indels.vcf.gz !{tumor1.baseName}.somatic.indels.vcf.gz
      
      !{params.bcftools} view -i'FILTER="PASS"' somatic.snvs.vcf.gz >  somatic.snvs.vcf.gz
-     mv somatic.snvs.vcf.gz !{params.output_folder}/!{ID}_calling_somatic_T2/!{tumor1.baseName}.somatic.snvs.vcf.gz
+     mv somatic.snvs.vcf.gz !{tumor1.baseName}.somatic.snvs.vcf.gz
      
-     mv somatic.indels.vcf.gz.tbi !{params.output_folder}/!{ID}_calling_somatic_T2/!{tumor1.baseName}.somatic.indels.vcf.gz.tbi
-     mv somatic.snvs.vcf.gz.tbi !{params.output_folder}/!{ID}_calling_somatic_T2/!{tumor1.baseName}.somatic.snvs.vcf.gz.tbi
+     mv somatic.indels.vcf.gz.tbi !{tumor1.baseName}.somatic.indels.vcf.gz.tbi
+     mv somatic.snvs.vcf.gz.tbi !{tumor1.baseName}.somatic.snvs.vcf.gz.tbi
      
      
   '''
