@@ -92,9 +92,8 @@ bams_T2N = Channel.fromPath(correspondance).splitCsv(header: true, sep: '\t', st
 
 
 
-
-strelka_germline= params.strelka + '/bin/configureStrelkaGermlineWorkflow.py' 		
-		
+strelka_germline= params.strelka + '/bin/configureStrelkaGermlineWorkflow.py'           
+                
 process germline_calling {
   input:
   set val(ID) ,file (normal) from bams_N
@@ -115,18 +114,18 @@ process germline_calling {
   !{strelka_germline} --bam !{normal} --referenceFasta !{params.ref}   --callRegions !{params.regions} --runDir strelkaGermline/!{ID}
   cd strelkaGermline/!{ID}
   ./runWorkflow.py -m local -j !{params.cpu} 
-cd results/variants
-mkdir !{params.output_folder}/!{ID}_calling_germline
-!{params.bcftools} view -i'FILTER="PASS"' genome.S1.vcf.gz > genome.S1.vcf.gz
-  mv  genome.S1.vcf.gz !{params.output_folder}/!{ID}_calling_germline/!{normal.baseName}.vcf.gz
 
-!{params.bcftools} view -i'FILTER="PASS"' variants.vcf.gz > variants.vcf.gz
-  mv  variants.vcf.gz !{params.output_folder}/!{ID}_calling_germline/!{normal.baseName}.variants.vcf.gz
-  
-  mv  genome.S1.vcf.gz.tbi !{params.output_folder}/!{ID}_calling_germline/!{normal.baseName}.vcf.gz.tbi
-  mv  variants.vcf.gz.tbi !{params.output_folder}/!{ID}_calling_germline/!{normal.baseName}.variants.vcf.gz.tbi
+mkdir !{params.output_folder}/!{ID}_calling_germline
+mv results/variants !{params.output_folder}/!{ID}_calling_germline
+  mv  genome.S1.vcf.gz !{normal.baseName}.vcf.gz
+  mv  variants.vcf.gz !{normal.baseName}.variants.vcf.gz
+  mv  genome.S1.vcf.gz.tbi !{normal.baseName}.vcf.gz.tbi
+  mv  variants.vcf.gz.tbi !{normal.baseName}.variants.vcf.gz.tbi
+
+
   '''
 }
+
 
 
 input_germlineCoverage = bams_TTN.join(VCF_germline)
@@ -172,8 +171,9 @@ set  val( ID) ,file (tumor1), file(normal) from bams_T1N
  !{strelka_somatic} --tumorBam=!{tumor1} --normalBam=!{normal} --referenceFasta=!{params.ref} --callRegions=!{params.regions} --callMemMb=1024   --runDir strelkaSomatic1/!{ID}
  cd strelkaSomatic1/!{ID}
      ./runWorkflow.py -m local -j 28
-     cd results/variants
+
      mkdir !{params.output_folder}/!{ID}_calling_somatic_T1
+    mv results/variants !{params.output_folder}/!{ID}_calling_somatic_T1        
       
      !{params.bcftools} view -i'FILTER="PASS"' somatic.indels.vcf.gz > somatic.indels.vcf.gz
      mv somatic.indels.vcf.gz !{params.output_folder}/!{ID}_calling_somatic_T1/!{tumor1.baseName}.somatic.indels.vcf.gz
@@ -189,6 +189,10 @@ set  val( ID) ,file (tumor1), file(normal) from bams_T1N
 }
 
 
+
+
+
+strelka_somatic= params.strelka + '/bin/configureStrelkaSomaticWorkflow.py' 
 
 process somatic_calling_T2 {
   input:
@@ -206,21 +210,23 @@ set  val( ID) ,file (tumor2), file(normal) from bams_T2N
  !{strelka_somatic} --tumorBam=!{tumor2} --normalBam=!{normal} --referenceFasta=!{params.ref} --callRegions=!{params.regions} --callMemMb=1024   --runDir strelkaSomatic2/!{ID}
  cd strelkaSomatic2/!{ID}
      ./runWorkflow.py -m local -j 28
-     cd results/variants
+
      mkdir !{params.output_folder}/!{ID}_calling_somatic_T2
+    mv results/variants !{params.output_folder}/!{ID}_calling_somatic_T2       
       
      !{params.bcftools} view -i'FILTER="PASS"' somatic.indels.vcf.gz > somatic.indels.vcf.gz
-     mv somatic.indels.vcf.gz !{params.output_folder}/!{ID}_calling_somatic_T2/!{tumor2.baseName}.somatic.indels.vcf.gz
+     mv somatic.indels.vcf.gz !{params.output_folder}/!{ID}_calling_somatic_T2/!{tumor1.baseName}.somatic.indels.vcf.gz
      
      !{params.bcftools} view -i'FILTER="PASS"' somatic.snvs.vcf.gz >  somatic.snvs.vcf.gz
-     mv somatic.snvs.vcf.gz !{params.output_folder}/!{ID}_calling_somatic_T2/!{tumor2.baseName}.somatic.snvs.vcf.gz
+     mv somatic.snvs.vcf.gz !{params.output_folder}/!{ID}_calling_somatic_T2/!{tumor1.baseName}.somatic.snvs.vcf.gz
      
-     mv somatic.indels.vcf.gz.tbi !{params.output_folder}/!{ID}_calling_somatic_T2/!{tumor2.baseName}.somatic.indels.vcf.gz.tbi
-     mv somatic.snvs.vcf.gz.tbi !{params.output_folder}/!{ID}_calling_somatic_T2/!{tumor2.baseName}.somatic.snvs.vcf.gz.tbi
+     mv somatic.indels.vcf.gz.tbi !{params.output_folder}/!{ID}_calling_somatic_T2/!{tumor1.baseName}.somatic.indels.vcf.gz.tbi
+     mv somatic.snvs.vcf.gz.tbi !{params.output_folder}/!{ID}_calling_somatic_T2/!{tumor1.baseName}.somatic.snvs.vcf.gz.tbi
      
      
   '''
 }
+
 
 VCF_somatic = VCF_somatic1_snvs.join(VCF_somatic2_snvs)
 input_somaticCoverage = bams_TT.join(VCF_somatic)
