@@ -54,7 +54,8 @@ if (params.help) {
     log.info "--correspondance		FILE				File containing the correspondance between the normal and two tumor samples and the sample id"
     log.info "--ref                 FILE                Reference file"
     log.info "--regions             FILE                 Regions "
-    log.info "--lib                 PATH  				Path to libraries : falcon.output.R falcon.output.R "
+    log.info "--lib                 PATH  				Path to libraries : falcon.output.R falcon.output.R falcon.getASCN.epsilon.R custom_canopy.plottree.R"
+    log.info "--K                   INTEGER				Number of subclones to generate by Canopy"   
     log.info ""
     log.info "Optional arguments:"
     log.info "--cpu                  INTEGER              Number of cpu to use (default=28)"
@@ -90,9 +91,10 @@ bams_T1N = Channel.fromPath(correspondance).splitCsv(header: true, sep: '\t', st
 bams_T2N = Channel.fromPath(correspondance).splitCsv(header: true, sep: '\t', strip: true)
 		.map{row -> [ row.ID,file(params.bam_folder + "/" + row.tumor2),file(params.bam_folder + "/" + row.tumor2+'.bai'),file(params.bam_folder + "/" + row.normal),file(params.bam_folder + "/" + row.normal+'.bai') ]}
 	
-IDs_NTT = Channel.fromPath(correspondance).splitCsv(header: true, sep: '\t', strip: true)
+IDs_TTN = Channel.fromPath(correspondance).splitCsv(header: true, sep: '\t', strip: true)
 		.map{row -> [ row.ID,row.tumor1, row.tumor2, row.normal ]}
-
+(IDs_TT,IDs_TT2) = Channel.fromPath(correspondance).splitCsv(header: true, sep: '\t', strip: true)
+		.map{row -> [ row.ID,row.tumor1, row.tumor2 ]}.into(2)
 
 strelka_germline= params.strelka + '/bin/configureStrelkaGermlineWorkflow.py'           
                 
@@ -173,7 +175,7 @@ set  val( ID) ,file (tumor1),file(tumor1_bai), file(normal), file(normal_bai) fr
 
   output:
    set val (ID), file ('*.indels.vcf.gz') into VCF_somatic1_indels
-   set val (ID), file ('*.snvs.vcf.gz') into VCF_somatic1_snvs
+   set val (ID), file ('*.snvs.vcf.gz') into VCF_somatic1_snvs,VCF_somatic1_snvs2
    set val (ID), file ('*.tbi') into TBI_somatic1
   shell:
   '''
@@ -213,7 +215,7 @@ set  val( ID) ,file (tumor2), file(tumor2_bai), file(normal),file(normal_bai) fr
 
   output:
    set val (ID), file ('*.indels.vcf.gz') into VCF_somatic2_indels
-   set val (ID), file ('*.snvs.vcf.gz') into VCF_somatic2_snvs
+   set val (ID), file ('*.snvs.vcf.gz') into VCF_somatic2_snvs,VCF_somatic2_snvs2
    set val (ID), file ('*.tbi') into TBI_somatic2
   
   shell:
@@ -239,6 +241,8 @@ cd results/variants
 
 VCF_somatic = VCF_somatic1_snvs.join(VCF_somatic2_snvs)
 input_somaticCoverage = bams_TT.join(VCF_somatic)
+
+VCF_somatic2 = VCF_somatic1_snvs2.join(VCF_somatic2_snvs2)
 
 
 process somatic_tumor_coverage {
@@ -299,28 +303,106 @@ input_Falcon = VCF_by_chr.join(IDs_TTN)
 
 process Falcon {
 
+publishDir params.output_folder, mode: 'copy'
+
  	input : 
- 	set val(ID), val(chr), fil(vcf_splitted), val(T1_ID), val(T2_ID), val(N_ID)
+ 	set val(ID), val(chr), file(vcf_splitted), val(T1_ID), val(T2_ID), val(N_ID) from input_Falcon
  	
  	output :
  	
  	set val(ID), file('*.pdf') into Falcon_PDF_report
-	set val(ID), file('*.txt') into Falcon_stderror
-	set val(ID), file('*.rda') into Falcon_RDA
+	set val(ID), file('*.txt'), file('*.rda') into Falcon_CNVs
+	
 
  	shell :
  	 Rscript --vanilla falcon.R !{vcf_splitted} !{ID} !{N_ID} !{T1_ID} !{T2_ID} !{chr} !{params.output_folder} !{params.lib}/falcon.output.R !{params.lib}/falcon.qc.R
 
 }
 
-process Falcon_stderr {
+CNV_input = .join(IDs_TT)
+
+
+process CNVs {
+
+publishDir params.output_folder, mode: 'copy'
+
 	input :
+	
+	set val(ID), file(input), val(T1_ID), val(T2_ID) from CNV_input
 	
 	output :
 	
+	set val(ID), file() into Falcon_CNV
+	
 	shell : 
 	
-	
+	Rscript --vanilla write_copy_number_tables.R   !{input} !{ID}  !{T1_ID} !{T2_ID} !{params.output_folder}
 
 }
+
+
+process Falcon_stderr {
+
+publishDir params.output_folder, mode: 'copy'
+
+	input :
+	set val(ID), file(coord), file(rda)  from Falcon_CNVs
+	
+	
+	output :
+	
+	set val(ID), file('*.txt') into Falcon_stderr
+	
+	shell : 
+	
+Rscript --vanilla falcon_epsilon.R   !{rda} !{coord}   !{params.output_folder} !{params.lib}/falcon.output.R !{params.lib}/falcon.getASCN.epsilon.R 
+}
+
+
+
+
+VCF_somatic_Canopy = VCF_somatic2.join(VCF_coverage_somatic)
+input_Canopy = VCF_somatic_Canopy.join(IDs_TT2)
+
+
+process Canopy {
+
+publishDir params.output_folder, mode: 'copy'
+
+	input :
+	
+	set val(ID),file(somatic1),file(somatic2), file(coveragesomatic1), file(coveragesomatic2) ,val(T1_ID), val(T2_ID) from input_Canopy
+	
+	
+	output :
+	
+	set val(ID), file('*.bic'),file('*.svg'),file('*.pdf'),file('*.rda') into Canopy
+	
+	shell : 
+	
+	Rscript --vanilla !{path_to_Falcon_output ??????} !{ID} !{T1_ID}  !{T2_ID} !{somatic1} !{somatic2} !{coveragesomatic1} !{coveragesomatic2} !{params.output_folder} !{params.K} !{params.lib}/custom_canopy.sample.cluster.R
+
+
+}
+
+
+process Canopy_tree {
+
+publishDir params.output_folder, mode: 'copy'
+
+	input :
+	
+	set val(ID), ... from Canopy
+	output :
+	
+	set val(ID), file('*.SVG'),file('*.pdf'),file('*.txt') into Canopy_trees
+
+	
+	shell : 
+	
+	Rscript --vanilla canopy_tree.R !{ID}   !{path_to_Canopy_output ??????}  !{params.lib}/custom_canopy.plottree.R
+
+}
+
+
  
