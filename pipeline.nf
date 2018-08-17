@@ -108,7 +108,7 @@ process germline_calling {
   file regions
 
   output:
-  set val("${ID}"),file("${normal.baseName}.vcf.gz") into VCF_germline,VCF_germline2
+  set val("${ID}"),file("${normal.baseName}.vcf.gz") into (VCF_germline,VCF_germline2)
   set val("${ID}"),file("${normal.baseName}.variants.vcf.gz") into VCF_germlineVariants
   set val("${ID}"), file("${normal.baseName}.vcf.gz.tbi"), file("${normal.baseName}.variants.vcf.gz.tbi") into TBI_Germline
 
@@ -175,7 +175,7 @@ set  val( ID) ,file (tumor1),file(tumor1_bai), file(normal), file(normal_bai) fr
 
   output:
    set val (ID), file ('*.indels.vcf.gz') into VCF_somatic1_indels
-   set val (ID), file ('*.snvs.vcf.gz') into VCF_somatic1_snvs,VCF_somatic1_snvs2
+   set val (ID), file ('*.snvs.vcf.gz') into (VCF_somatic1_snvs,VCF_somatic1_snvs2)
    set val (ID), file ('*.tbi') into TBI_somatic1
   shell:
   '''
@@ -215,7 +215,7 @@ set  val( ID) ,file (tumor2), file(tumor2_bai), file(normal),file(normal_bai) fr
 
   output:
    set val (ID), file ('*.indels.vcf.gz') into VCF_somatic2_indels
-   set val (ID), file ('*.snvs.vcf.gz') into VCF_somatic2_snvs,VCF_somatic2_snvs2
+   set val (ID), file ('*.snvs.vcf.gz') into (VCF_somatic2_snvs,VCF_somatic2_snvs2)
    set val (ID), file ('*.tbi') into TBI_somatic2
   
   shell:
