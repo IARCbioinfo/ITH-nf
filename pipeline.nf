@@ -56,6 +56,7 @@ if (params.help) {
     log.info "--regions             FILE                 Regions "
     log.info "--lib                 PATH  				Path to libraries : falcon.output.R falcon.output.R falcon.getASCN.epsilon.R custom_canopy.plottree.R"
     log.info "--K                   INTEGER				Number of subclones to generate by Canopy"   
+    log.info "--tabix 				PATH  				Path to tabix installation dir"
     log.info ""
     log.info "Optional arguments:"
     log.info "--cpu                  INTEGER              Number of cpu to use (default=28)"
@@ -108,7 +109,7 @@ process germline_calling {
   file regions
 
   output:
-  set val("${ID}"),file("${normal.baseName}.vcf.gz") into (VCF_germline,VCF_germline2)
+  set val("${ID}"),file("${normal.baseName}.vcf.gz") into VCF_germline
   set val("${ID}"),file("${normal.baseName}.variants.vcf.gz") into VCF_germlineVariants
   set val("${ID}"), file("${normal.baseName}.vcf.gz.tbi"), file("${normal.baseName}.variants.vcf.gz.tbi") into TBI_Germline
 
@@ -135,10 +136,11 @@ cd results/variants
 
 
 input_germlineCoverage = bams_TTN.join(VCF_germline)
+
 process germline_tumor_coverage {
- 
- publishDir params.output_folder, mode: 'copy'
- 
+
+publishDir params.output_folder, mode: 'copy'
+
   input:
   set val(ID),file (bamtumor1),file(bamtumor2),file(bamnormal),file(germlineVCF) from input_germlineCoverage
   file ref
@@ -146,19 +148,15 @@ process germline_tumor_coverage {
 
   
   output:
-set val("${ID}"),file("${ID}.vcf") into coverage_germline
+  set val(ID),file("${ID}.vcf") into coverage_germline
 
 shell :
 '''
- !{strelka_germline} --bam !{bamtumor1} --bam !{bamtumor2} --bam !{bamnormal} --forcedGT !{germlineVCF}  --referenceFasta=!{params.ref}   --callRegions=!{params.regions} --runDir strelkaCoverageGermline/!{ID}
- cd strelkaCoverageGermline/!{ID}
-     ./runWorkflow.py -m local -j 28
-     mv genome.vcf.gz !{ID}_covargeGermline.vcf.gz
-     mv genome.vcf.gz.tbi !{ID}_covargeGermline.vcf.gz.tbi
-
-     
+!{params.platypus} callVariants --bamFiles=!{bamnormal},!{bamtumor1},!{bamtumor2} --refFile=!{input_ref} --regions=!{params.regions} --nCPU=12 --output=!{ID}.coverage.germline.vcf --source=!{germlineVCF} --minPosterior=0 --getVariantsFromBAMs=0
 '''
 }
+
+
 
 
 
@@ -281,17 +279,17 @@ set val(ID),file("${ID}_covargeSomatic_T1.vcf.gz"),file("${ID}_covargeSomatic_T2
 process split_into_chr {
 
 	input :
-	set val(ID),file(germline_vcf) from VCF_germline2
+	set val(ID),file(vcf) from coverage_germline
 	
 	output :
-	set val(ID), set val (i), file ("*.vcf/gz") into VCF_by_chr
+	set val(ID), set val (i), file ("*.vcf.gz") into VCF_by_chr
 	
 	shell : 
 	declare -a arr=("chr1" "chr2" "chr3" "chr4" "chr5" "chr6" "chr7" "chr8" "chr9" "chr10" "chr11" "chr12" "chr13" "chr14" "chr15" "chr16" "chr17" "chr18" "chr19" "chr20" "chr21" "chr22" "chrX" "chrY")
 
 for i in ${arr[@]}
 do
-   tabix -h !{germline_vcf} !i > !{ID}_germline.!i.vcf
+   !{params.tabix} -h !{vcf} !i > !{ID}_germline.!i.vcf
 done
 	
 
@@ -310,8 +308,9 @@ publishDir params.output_folder, mode: 'copy'
  	
  	output :
  	
- 	set val(ID), file('*.pdf') into Falcon_PDF_report
-	set val(ID), file('*.txt'), file('*.rda') into Falcon_CNVs
+ 	set val(ID),  file('*.pdf') into Falcon_PDF_report
+	set val(ID),  file('*.txt') into (Falcon_CNVs_txt,Falcon_CNVs_txt2)
+	set val(ID), file('*.rda') into Falcon_CNVs_rda
 	
 
  	shell :
@@ -319,34 +318,15 @@ publishDir params.output_folder, mode: 'copy'
 
 }
 
-CNV_input = .join(IDs_TT)
 
-
-process CNVs {
-
-publishDir params.output_folder, mode: 'copy'
-
-	input :
-	
-	set val(ID), file(input), val(T1_ID), val(T2_ID) from CNV_input
-	
-	output :
-	
-	set val(ID), file() into Falcon_CNV
-	
-	shell : 
-	
-	Rscript --vanilla write_copy_number_tables.R   !{input} !{ID}  !{T1_ID} !{T2_ID} !{params.output_folder}
-
-}
-
-
+ input_Falcon_eps = Falcon_CNVs_txt.join(Falcon_CNVs_rda)
+ 
 process Falcon_stderr {
 
 publishDir params.output_folder, mode: 'copy'
 
 	input :
-	set val(ID), file(coord), file(rda)  from Falcon_CNVs
+	set val(ID), file(txt), file(coord1),file(coord2)  from input_Falcon_eps
 	
 	
 	output :
@@ -355,14 +335,12 @@ publishDir params.output_folder, mode: 'copy'
 	
 	shell : 
 	
-Rscript --vanilla falcon_epsilon.R   !{rda} !{coord}   !{params.output_folder} !{params.lib}/falcon.output.R !{params.lib}/falcon.getASCN.epsilon.R 
+Rscript --vanilla falcon_epsilon.R   !{txt} !{coord1} !{coord2}   !{params.output_folder} !{params.lib}/falcon.output.R !{params.lib}/falcon.getASCN.epsilon.R 
 }
 
 
-
-
 VCF_somatic_Canopy = VCF_somatic2.join(VCF_coverage_somatic)
-input_Canopy = VCF_somatic_Canopy.join(IDs_TT2)
+input_Canopy = Falcon_CNVs_txt2.join(VCF_somatic_Canopy.join(IDs_TT2.join(Falcon_stderr)))
 
 
 process Canopy {
@@ -371,16 +349,17 @@ publishDir params.output_folder, mode: 'copy'
 
 	input :
 	
-	set val(ID),file(somatic1),file(somatic2), file(coveragesomatic1), file(coveragesomatic2) ,val(T1_ID), val(T2_ID) from input_Canopy
+	set val(ID), file(falcontxt), file(somatic1),file(somatic2), file(coveragesomatic1), file(coveragesomatic2) ,val(T1_ID), val(T2_ID),file(txt1),file(txt2) from input_Canopy
 	
 	
 	output :
 	
-	set val(ID), file('*.bic'),file('*.svg'),file('*.pdf'),file('*.rda') into Canopy
+	set val(ID), file('*.bic') into Canopy
+	set val(ID),file('*.svg'),file('*.pdf'),file('*.rda') into Canopy_reports
 	
 	shell : 
 	
-	Rscript --vanilla !{path_to_Falcon_output ??????} !{ID} !{T1_ID}  !{T2_ID} !{somatic1} !{somatic2} !{coveragesomatic1} !{coveragesomatic2} !{params.output_folder} !{params.K} !{params.lib}/custom_canopy.sample.cluster.R
+	Rscript --vanilla !{falcontxt} !{ID} !{T1_ID}  !{T2_ID} !{somatic1} !{somatic2} !{coveragesomatic1} !{coveragesomatic2} !{params.output_folder} !{params.K} !{params.lib}/custom_canopy.sample.cluster.R !{txt1} !{txt2}
 
 
 }
@@ -392,7 +371,7 @@ publishDir params.output_folder, mode: 'copy'
 
 	input :
 	
-	set val(ID), ... from Canopy
+	set val(ID), file(bic) from Canopy
 	output :
 	
 	set val(ID), file('*.SVG'),file('*.pdf'),file('*.txt') into Canopy_trees
@@ -400,7 +379,7 @@ publishDir params.output_folder, mode: 'copy'
 	
 	shell : 
 	
-	Rscript --vanilla canopy_tree.R !{ID}   !{path_to_Canopy_output ??????}  !{params.lib}/custom_canopy.plottree.R
+	Rscript --vanilla canopy_tree.R !{ID}   !{bic}  !{params.lib}/custom_canopy.plottree.R
 
 }
 
