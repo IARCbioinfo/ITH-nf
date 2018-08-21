@@ -95,8 +95,11 @@ bams_T2N = Channel.fromPath(correspondance).splitCsv(header: true, sep: '\t', st
 	
 IDs_TTN = Channel.fromPath(correspondance).splitCsv(header: true, sep: '\t', strip: true)
 		.map{row -> [ row.ID,row.tumor1, row.tumor2, row.normal ]}
+
 (IDs_TT,IDs_TT2) = Channel.fromPath(correspondance).splitCsv(header: true, sep: '\t', strip: true)
 		.map{row -> [ row.ID,row.tumor1, row.tumor2 ]}.into(2)
+
+chromosomes = Channel.from(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,'X','Y')
 
 strelka_germline= params.strelka + '/bin/configureStrelkaGermlineWorkflow.py'           
                 
@@ -280,18 +283,21 @@ process split_into_chr {
 
 	input :
 	set val(ID),file(vcf) from coverage_germline
-	set val(chr) from  [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,'X','Y']
+	set val(chr) from  chromosomes
+
 	output :
 	set val(ID), val(chr) file ("*.vcf.gz") into VCF_by_chr
 	
 	shell : 
 
-
-   !{params.tabix} -h !{vcf} chr${chr} > !{ID}_germline_chr${chr}.vcf
-
+ """
+	!{params.tabix} -p !{vcf}
+   !{params.tabix} -h !{filevcf} chr${chr} > germline_chr${chr}.vcf
+"""
 }
  
-	
+
+
 
 
 		
@@ -312,8 +318,9 @@ publishDir params.output_folder, mode: 'copy'
 	
 
  	shell :
+ 	 '''
  	 Rscript --vanilla falcon.R !{vcf_splitted} !{ID} !{N_ID} !{T1_ID} !{T2_ID} !{chr} !{params.output_folder} !{params.lib}/falcon.output.R !{params.lib}/falcon.qc.R
-
+ '''
 }
 
 
@@ -332,8 +339,9 @@ publishDir params.output_folder, mode: 'copy'
 	set val(ID), file('*.txt') into Falcon_stderr
 	
 	shell : 
-	
+	 '''
 Rscript --vanilla falcon_epsilon.R   !{txt} !{coord1} !{coord2}   !{params.output_folder} !{params.lib}/falcon.output.R !{params.lib}/falcon.getASCN.epsilon.R 
+ '''
 }
 
 
@@ -356,9 +364,9 @@ publishDir params.output_folder, mode: 'copy'
 	set val(ID),file('*.svg'),file('*.pdf'),file('*.rda') into Canopy_reports
 	
 	shell : 
-	
+	 '''
 	Rscript --vanilla !{falcontxt} !{ID} !{T1_ID}  !{T2_ID} !{somatic1} !{somatic2} !{coveragesomatic1} !{coveragesomatic2} !{params.output_folder} !{params.K} !{params.lib}/custom_canopy.sample.cluster.R !{txt1} !{txt2}
-
+ '''
 
 }
 
@@ -376,9 +384,9 @@ publishDir params.output_folder, mode: 'copy'
 
 	
 	shell : 
-	
+	 '''
 	Rscript --vanilla canopy_tree.R !{ID}   !{bic}  !{params.lib}/custom_canopy.plottree.R
-
+ '''
 }
 
 
