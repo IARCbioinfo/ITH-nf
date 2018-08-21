@@ -57,6 +57,7 @@ if (params.help) {
     log.info "--lib                 PATH  				Path to libraries : falcon.output.R falcon.output.R falcon.getASCN.epsilon.R custom_canopy.plottree.R"
     log.info "--K                   INTEGER				Number of subclones to generate by Canopy"   
     log.info "--tabix 				PATH  				Path to tabix installation dir"
+    log.info "--platypus			PATH				Path to platypus installation dir"
     log.info ""
     log.info "Optional arguments:"
     log.info "--cpu                  INTEGER              Number of cpu to use (default=28)"
@@ -275,25 +276,22 @@ set val(ID),file("${ID}_covargeSomatic_T1.vcf.gz"),file("${ID}_covargeSomatic_T2
 }
 
 
-
 process split_into_chr {
 
 	input :
 	set val(ID),file(vcf) from coverage_germline
-	
+	set val(chr) from  [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,'X','Y']
 	output :
-	set val(ID), set val (i), file ("*.vcf.gz") into VCF_by_chr
+	set val(ID), val(chr) file ("*.vcf.gz") into VCF_by_chr
 	
 	shell : 
-	declare -a arr=("chr1" "chr2" "chr3" "chr4" "chr5" "chr6" "chr7" "chr8" "chr9" "chr10" "chr11" "chr12" "chr13" "chr14" "chr15" "chr16" "chr17" "chr18" "chr19" "chr20" "chr21" "chr22" "chrX" "chrY")
 
-for i in ${arr[@]}
-do
-   !{params.tabix} -h !{vcf} !i > !{ID}_germline.!i.vcf
-done
-	
+
+   !{params.tabix} -h !{vcf} chr${chr} > !{ID}_germline_chr${chr}.vcf
 
 }
+ 
+	
 
 
 		
