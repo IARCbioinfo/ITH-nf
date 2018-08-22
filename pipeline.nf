@@ -49,7 +49,6 @@ if (params.help) {
     log.info "Mandatory arguments:"
     log.info "--strelka             PATH                Path to strelka installation dir "
     log.info "--R              PATH               R installation dir"
-    log.info "--falcon_qc             PATH            falcon.qc.r dir"
     log.info "--bam_folder         FOLDER               Folder containing bam files "
     log.info "--correspondance		FILE				File containing the correspondance between the normal and two tumor samples and the sample id"
     log.info "--ref                 FILE                Reference file"
@@ -58,6 +57,7 @@ if (params.help) {
     log.info "--K                   INTEGER				Number of subclones to generate by Canopy"   
     log.info "--tabix 				PATH  				Path to tabix installation dir"
     log.info "--platypus			PATH				Path to platypus installation dir"
+    log.inof "--Rcodes 				PATH				Path to folder containing R codes "    
     log.info ""
     log.info "Optional arguments:"
     log.info "--cpu                  INTEGER              Number of cpu to use (default=28)"
@@ -291,7 +291,7 @@ process split_into_chr {
 	shell : 
 
  """
-	!{params.tabix} -p !{vcf}
+   !{params.tabix} -p !{vcf}
    !{params.tabix} -h !{filevcf} chr${chr} > germline_chr${chr}.vcf
 """
 }
@@ -319,7 +319,7 @@ publishDir params.output_folder, mode: 'copy'
 
  	shell :
  	 '''
- 	 Rscript --vanilla falcon.R !{vcf_splitted} !{ID} !{N_ID} !{T1_ID} !{T2_ID} !{chr} !{params.output_folder} !{params.lib}/falcon.output.R !{params.lib}/falcon.qc.R
+ 	 Rscript --vanilla !{params.Rcodes}/Falcon.R !{vcf_splitted} !{ID} !{N_ID} !{T1_ID} !{T2_ID} !{chr} !{params.output_folder} !{params.lib}/falcon.output.R !{params.lib}/falcon.qc.R
  '''
 }
 
@@ -340,7 +340,7 @@ publishDir params.output_folder, mode: 'copy'
 	
 	shell : 
 	 '''
-Rscript --vanilla falcon_epsilon.R   !{txt} !{coord1} !{coord2}   !{params.output_folder} !{params.lib}/falcon.output.R !{params.lib}/falcon.getASCN.epsilon.R 
+Rscript --vanilla !{params.Rcodes}/Falcon_epsilon.R   !{txt} !{coord1} !{coord2}   !{params.output_folder} !{params.lib}/falcon.output.R !{params.lib}/falcon.getASCN.epsilon.R 
  '''
 }
 
@@ -365,7 +365,7 @@ publishDir params.output_folder, mode: 'copy'
 	
 	shell : 
 	 '''
-	Rscript --vanilla !{falcontxt} !{ID} !{T1_ID}  !{T2_ID} !{somatic1} !{somatic2} !{coveragesomatic1} !{coveragesomatic2} !{params.output_folder} !{params.K} !{params.lib}/custom_canopy.sample.cluster.R !{txt1} !{txt2}
+	Rscript --vanilla !{params.Rcodes}/Canopy.R !{falcontxt} !{ID} !{T1_ID}  !{T2_ID} !{somatic1} !{somatic2} !{coveragesomatic1} !{coveragesomatic2} !{params.output_folder} !{params.K} !{params.lib}/custom_canopy.sample.cluster.R !{txt1} !{txt2}
  '''
 
 }
@@ -385,7 +385,7 @@ publishDir params.output_folder, mode: 'copy'
 	
 	shell : 
 	 '''
-	Rscript --vanilla canopy_tree.R !{ID}   !{bic}  !{params.lib}/custom_canopy.plottree.R
+	Rscript --vanilla !{params.Rcodes}/Canopy_tree.R !{ID}   !{bic}  !{params.lib}/custom_canopy.plottree.R
  '''
 }
 
