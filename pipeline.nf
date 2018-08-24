@@ -44,7 +44,7 @@ if (params.help) {
     log.info ""
     log.info "-------------------ITH-------------------------------"
     log.info "" 
-    log.info "nextflow run iarcbioinfo/pipeline.nf   --bam_folder path/to/bams/ --correspondance path/to/correpondance/csv/  --output_folder /path/to/output --strelka --bcftools --R  --tabix --ref --regions path/to/"
+    log.info "nextflow run iarcbioinfo/pipeline.nf   --bam_folder path/to/bams/ --correspondance path/to/correpondance/csv/  --output_folder /path/to/output --strelka /path/to/trelka --bcftools  /path/to/bcftools --tabix /path/to/tabix --platypus /path/to/platypus --Rcodes --lib /path/to/R/libraries --K integer --ref /path/to/ref --regions path/to/regions"
     log.info ""
     log.info "Mandatory arguments:"
     log.info "--strelka             PATH                Path to strelka installation dir "
