@@ -1,5 +1,5 @@
 # ITH_nf #
-
+![Image ITH](https://github.com/ImaneLboukili/ITH_nf/blob/master/ITH-nf.png)
 ## Description ##
 Perform Intra-Tumor Heterogeneity (ITH) analysis.
 
