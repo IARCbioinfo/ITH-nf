@@ -48,6 +48,10 @@ Flags are special parameters without value.
 
 ## Output ##
 
-**Name**        | **Description**
---------------- | -------------
-        | 
+**Name**                             | **Description**
+-------------------------------------| -------------
+ VCFs (and corresponding .tbi)       | Results of the germline and somatic callings, the somatic and germline coverage
+ PDFs                                | Reports for Falcon and Canopy runs
+ rda                                 | Falcon and Canopy coordinates
+ txt                                 | Standard error for Falcon
+ SVGs                                | Canopy trees
