@@ -15,12 +15,18 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 params.help = null
-params.ref = null
+params.fasta_ref = null
+assert (params.fasta_ref != null) : "please specify --fasta_ref option to provide a reference genome"
 params.regions = null
+assert (params.regions != null) : "please specify --regions option to provide a BED file"
 params.correspondance = null
+assert (params.correspondance != null) : "please specify --correspondance option to provide a tumor/normal correspondance file"
+params.bam_folder = null
+assert (params.bam_folder != null) : "please specify --bam_folder option to provide path of BAM folder"
 params.cpu  = 1
 params.mem  = 4
-params.strelka  = null
+params.strelka2  = null
+assert (params.strelka2 != null) : "please specify --strelka2 option to provide the installation folder of strelka2"
 params.bcftools   = "bcftools"
 params.tabix  = "tabix"
 
@@ -42,14 +48,14 @@ if (params.help) {
     log.info ""
     log.info "----- Intra tumor heterogeneity nextflow pipeline ------"
     log.info ""
-    log.info "nextflow run iarcbioinfo/pipeline.nf   --bam_folder path/to/bams/ --correspondance path/to/correpondance/csv/  --output_folder /path/to/output --strelka /path/to/trelka --bcftools  /path/to/bcftools --tabix /path/to/tabix --platypus /path/to/platypus --K integer --ref /path/to/ref --regions path/to/regions"
+    log.info "nextflow run iarcbioinfo/pipeline.nf   --bam_folder path/to/bams/ --correspondance path/to/correpondance/csv/  --output_folder /path/to/output --strelka2 /path/to/trelka --bcftools  /path/to/bcftools --tabix /path/to/tabix --platypus /path/to/platypus --K integer --fasta_ref /path/to/ref --regions path/to/regions"
     log.info ""
     log.info "Mandatory arguments:"
-    log.info "--strelka             PATH          Path to strelka installation dir "
+    log.info "--strelka2            PATH          Path to strelka2 installation dir "
     log.info "--R                   PATH          R installation dir"
     log.info "--bam_folder          FOLDER        Folder containing bam files "
     log.info "--correspondance		  FILE				  File containing the correspondance between the normal and two tumor samples and the sample id"
-    log.info "--ref                 FILE          Reference file"
+    log.info "--fasta_ref           FILE          Reference file"
     log.info "--regions             FILE          Regions"
     log.info "--lib                 PATH  				Path to libraries : falcon.output.R falcon.output.R falcon.getASCN.epsilon.R custom_canopy.plottree.R"
     log.info "--K                   INTEGER				Number of subclones to generate by Canopy"
@@ -68,13 +74,14 @@ if (params.help) {
 }
 
 
-ref = file(params.ref)
+fasta_ref = file(params.fasta_ref)
+fasta_ref_fai = file( params.fasta_ref+'.fai' )
 regions = 	file(params.regions)
+regions_tbi = file( params.regions+'.tbi' )
 correspondance = file(params.correspondance)
 
 bams_TTN= Channel.fromPath(correspondance).splitCsv(header: true, sep: '\t', strip: true)
 		.map{row -> [ row.ID,file(params.bam_folder + "/" + row.tumor1),file(params.bam_folder + "/" + row.tumor1+'.bai'),file(params.bam_folder + "/" + row.tumor2),file(params.bam_folder + "/" + row.tumor2+'.bai'),file(params.bam_folder + "/" + row.normal),file(params.bam_folder + "/" + row.normal+'.bai') ]}
-
 
 (bams_TT,bams_TT2) =  Channel.fromPath(correspondance).splitCsv(header: true, sep: '\t', strip: true)
 		.map{row -> [ row.ID,file(params.bam_folder + "/" + row.tumor1),file(params.bam_folder + "/" + row.tumor1+'.bai'),file(params.bam_folder + "/" + row.tumor2),file(params.bam_folder + "/" + row.tumor2+'.bai') ]}.into(2)
@@ -96,18 +103,18 @@ IDs_TTN = Channel.fromPath(correspondance).splitCsv(header: true, sep: '\t', str
 
 chromosomes = Channel.from(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,'X','Y')
 
-strelka_germline = params.strelka + '/bin/configureStrelkaGermlineWorkflow.py'
+strelka2_germline = params.strelka2 + '/bin/configureStrelkaGermlineWorkflow.py'
 
-
-/*
 process germline_calling {
 
  publishDir params.output_folder, mode: 'copy'
 
   input:
-  set val(ID) ,file (normal),file(normal_bai) from bams_N
-  file ref
+  set val(ID), file(normal), file(normal_bai) from bams_N
+  file fasta_ref
+  file fasta_ref_fai
   file regions
+  file regions_tbi
 
   output:
   set val("${ID}"),file("${normal.baseName}.vcf.gz") into VCF_germline
@@ -116,24 +123,19 @@ process germline_calling {
 
   shell:
   '''
-
-
   runDir="results/variants/"
-  !{strelka_germline} --bam !{normal} --referenceFasta !{params.ref}   --callRegions !{params.regions} --runDir strelkaGermline/!{ID}
+  !{strelka2_germline} --bam !{normal} --referenceFasta !{fasta_ref}   --callRegions !{regions} --runDir strelkaGermline/!{ID}
   cd strelkaGermline/!{ID}
   ./runWorkflow.py -m local -j !{params.cpu}
-
-cd results/variants
-
+  cd results/variants
   mv  genome.S1.vcf.gz !{normal.baseName}.vcf.gz
   mv  variants.vcf.gz !{normal.baseName}.variants.vcf.gz
   mv  genome.S1.vcf.gz.tbi !{normal.baseName}.vcf.gz.tbi
   mv  variants.vcf.gz.tbi !{normal.baseName}.variants.vcf.gz.tbi
-
-
   '''
 }
 
+/*
 input_germlineCoverage = bams_TTN.join(VCF_germline)
 
 process germline_tumor_coverage {
@@ -142,7 +144,7 @@ publishDir params.output_folder, mode: 'copy'
 
   input:
   set val(ID),file (bamtumor1),file(bamtumor2),file(bamnormal),file(germlineVCF) from input_germlineCoverage
-  file ref
+  file fasta_ref
   file regions
 
 
@@ -155,7 +157,7 @@ shell :
 '''
 }
 
-strelka_somatic= params.strelka + '/bin/configureStrelkaSomaticWorkflow.py'
+strelka2_somatic= params.strelka2 + '/bin/configureStrelkaSomaticWorkflow.py'
 
 process somatic_calling_T1 {
 
@@ -163,7 +165,7 @@ process somatic_calling_T1 {
 
   input:
 set  val( ID) ,file (tumor1),file(tumor1_bai), file(normal), file(normal_bai) from bams_T1N
-  file ref
+  file fasta_ref
   file regions
 
   output:
@@ -173,7 +175,7 @@ set  val( ID) ,file (tumor1),file(tumor1_bai), file(normal), file(normal_bai) fr
   shell:
   '''
 
- !{strelka_somatic} --tumorBam=!{tumor1} --normalBam=!{normal} --referenceFasta=!{params.ref} --callRegions=!{params.regions} --callMemMb=1024   --runDir strelkaSomatic1/!{ID}
+ !{strelka2_somatic} --tumorBam=!{tumor1} --normalBam=!{normal} --referenceFasta=!{fasta_ref} --callRegions=!{params.regions} --callMemMb=1024   --runDir strelkaSomatic1/!{ID}
  cd strelkaSomatic1/!{ID}
      ./runWorkflow.py -m local -j 28
 
@@ -198,7 +200,7 @@ publishDir params.output_folder, mode: 'copy'
 
   input:
 set  val( ID) ,file (tumor2), file(tumor2_bai), file(normal),file(normal_bai) from bams_T2N
-  file ref
+  file fasta_ref
   file regions
 
   output:
@@ -209,7 +211,7 @@ set  val( ID) ,file (tumor2), file(tumor2_bai), file(normal),file(normal_bai) fr
   shell:
   '''
 
- !{strelka_somatic} --tumorBam=!{tumor2} --normalBam=!{normal} --referenceFasta=!{params.ref} --callRegions=!{params.regions} --callMemMb=1024   --runDir strelkaSomatic2/!{ID}
+ !{strelka2_somatic} --tumorBam=!{tumor2} --normalBam=!{normal} --referenceFasta=!{fasta_ref} --callRegions=!{params.regions} --callMemMb=1024   --runDir strelkaSomatic2/!{ID}
  cd strelkaSomatic2/!{ID}
      ./runWorkflow.py -m local -j 28
 cd results/variants
@@ -239,7 +241,7 @@ publishDir params.output_folder, mode: 'copy'
 
    input:
   set val(ID),file (bamtumor1),file(bamtumor2), file(somaticVCF1),file(somaticVCF2) from input_somaticCoverage
-  file ref
+  file fasta_ref
   file regions
 
 
@@ -250,7 +252,7 @@ set val(ID),file("${ID}_covargeSomatic_T1.vcf.gz"),file("${ID}_covargeSomatic_T2
 
   shell :
   '''
- !{strelka_germline} --bam=!{bamtumor1} --bam !{bamtumor2} --forcedGT !{somaticVCF1} --forcedGT !{somaticVCF2}  --referenceFasta=!{params.ref}   --callRegions=!{params.regions} --runDir strelkaCoverageSomatic/!{ID}
+ !{strelka2_germline} --bam=!{bamtumor1} --bam !{bamtumor2} --forcedGT !{somaticVCF1} --forcedGT !{somaticVCF2}  --referenceFasta=!{fasta_ref}   --callRegions=!{params.regions} --runDir strelkaCoverageSomatic/!{ID}
  cd strelkaCoverageSomatic/!{ID}
      ./runWorkflow.py -m local -j 28
 
@@ -345,10 +347,9 @@ publishDir params.output_folder, mode: 'copy'
 	set val(ID),file('*.svg'),file('*.pdf'),file('*.rda') into Canopy_reports
 
 	shell :
-	 '''
-	Rscript --vanilla !{baseDir}/Canopy.R !{falcontxt} !{ID} !{T1_ID}  !{T2_ID} !{somatic1} !{somatic2} !{coveragesomatic1} !{coveragesomatic2} !{params.output_folder} !{params.K} !{baseDir}/libs/custom_canopy.sample.cluster.R !{txt1} !{txt2}
- '''
-
+  '''
+  Rscript --vanilla !{baseDir}/Canopy.R !{falcontxt} !{ID} !{T1_ID}  !{T2_ID} !{somatic1} !{somatic2} !{coveragesomatic1} !{coveragesomatic2} !{params.output_folder} !{params.K} !{baseDir}/libs/custom_canopy.sample.cluster.R !{txt1} !{txt2}
+  '''
 }
 
 
