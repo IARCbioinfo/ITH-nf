@@ -22,7 +22,6 @@ params.cpu  = 1
 params.mem  = 4
 params.strelka  = null
 params.bcftools   = "bcftools"
-params.R   = 3
 params.tabix  = "tabix"
 
 log.info ""
@@ -101,7 +100,7 @@ chromosomes = Channel.from(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21
 strelka_germline = params.strelka + '/bin/configureStrelkaGermlineWorkflow.py'
 
 
-/* 
+/*
 process germline_calling {
 
  publishDir params.output_folder, mode: 'copy'
@@ -302,7 +301,7 @@ publishDir params.output_folder, mode: 'copy'
 
  	shell :
  	 '''
- 	 Rscript --vanilla !{baseDir}/Falcon.R !{vcf_splitted} !{ID} !{N_ID} !{T1_ID} !{T2_ID} !{chr} !{params.output_folder} !{params.lib}/falcon.output.R !{params.lib}/falcon.qc.R
+ 	 Rscript --vanilla !{baseDir}/Falcon.R !{vcf_splitted} !{ID} !{N_ID} !{T1_ID} !{T2_ID} !{chr} !{params.output_folder} !{params.baseDir}/libs}/falcon.output.R !{baseDir}/libs/falcon.qc.R
    '''
 }
 
@@ -323,7 +322,7 @@ publishDir params.output_folder, mode: 'copy'
 
 	shell :
 	 '''
-Rscript --vanilla !{params.Rcodes}/Falcon_epsilon.R   !{txt} !{coord1} !{coord2}   !{params.output_folder} !{params.lib}/falcon.output.R !{params.lib}/falcon.getASCN.epsilon.R
+Rscript --vanilla !{baseDir}/Falcon_epsilon.R   !{txt} !{coord1} !{coord2}   !{params.output_folder} !{baseDir}/libs/falcon.output.R !{baseDir}/libs/falcon.getASCN.epsilon.R
  '''
 }
 
@@ -348,7 +347,7 @@ publishDir params.output_folder, mode: 'copy'
 
 	shell :
 	 '''
-	Rscript --vanilla !{params.Rcodes}/Canopy.R !{falcontxt} !{ID} !{T1_ID}  !{T2_ID} !{somatic1} !{somatic2} !{coveragesomatic1} !{coveragesomatic2} !{params.output_folder} !{params.K} !{params.lib}/custom_canopy.sample.cluster.R !{txt1} !{txt2}
+	Rscript --vanilla !{baseDircodes}/Canopy.R !{falcontxt} !{ID} !{T1_ID}  !{T2_ID} !{somatic1} !{somatic2} !{coveragesomatic1} !{coveragesomatic2} !{params.output_folder} !{params.K} !{baseDir}/libs/custom_canopy.sample.cluster.R !{txt1} !{txt2}
  '''
 
 }
@@ -368,7 +367,7 @@ publishDir params.output_folder, mode: 'copy'
 
 	shell :
 	 '''
-	Rscript --vanilla !{params.Rcodes}/Canopy_tree.R !{ID}   !{bic}  !{params.lib}/custom_canopy.plottree.R
+	Rscript --vanilla !{baseDir}/Canopy_tree.R !{ID}   !{bic}  !{baseDir}/libs/custom_canopy.plottree.R
  '''
 }
 
