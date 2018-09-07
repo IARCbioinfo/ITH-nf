@@ -42,7 +42,7 @@ if (params.help) {
     log.info ""
     log.info "----- Intra tumor heterogeneity nextflow pipeline ------"
     log.info ""
-    log.info "nextflow run iarcbioinfo/pipeline.nf   --bam_folder path/to/bams/ --correspondance path/to/correpondance/csv/  --output_folder /path/to/output --strelka /path/to/trelka --bcftools  /path/to/bcftools --tabix /path/to/tabix --platypus /path/to/platypus --Rcodes --lib /path/to/R/libraries --K integer --ref /path/to/ref --regions path/to/regions"
+    log.info "nextflow run iarcbioinfo/pipeline.nf   --bam_folder path/to/bams/ --correspondance path/to/correpondance/csv/  --output_folder /path/to/output --strelka /path/to/trelka --bcftools  /path/to/bcftools --tabix /path/to/tabix --platypus /path/to/platypus --K integer --ref /path/to/ref --regions path/to/regions"
     log.info ""
     log.info "Mandatory arguments:"
     log.info "--strelka             PATH          Path to strelka installation dir "
@@ -55,7 +55,6 @@ if (params.help) {
     log.info "--K                   INTEGER				Number of subclones to generate by Canopy"
     log.info "--tabix 				      PATH  				Path to tabix installation dir"
     log.info "--platypus			      PATH		  		Path to platypus installation dir"
-    log.inof "--Rcodes 				      PATH			  	Path to folder containing R codes "
     log.info ""
     log.info "Optional arguments:"
     log.info "--cpu                 INTEGER       Number of cpu to use (default=28)"
@@ -347,7 +346,7 @@ publishDir params.output_folder, mode: 'copy'
 
 	shell :
 	 '''
-	Rscript --vanilla !{baseDircodes}/Canopy.R !{falcontxt} !{ID} !{T1_ID}  !{T2_ID} !{somatic1} !{somatic2} !{coveragesomatic1} !{coveragesomatic2} !{params.output_folder} !{params.K} !{baseDir}/libs/custom_canopy.sample.cluster.R !{txt1} !{txt2}
+	Rscript --vanilla !{baseDir}/Canopy.R !{falcontxt} !{ID} !{T1_ID}  !{T2_ID} !{somatic1} !{somatic2} !{coveragesomatic1} !{coveragesomatic2} !{params.output_folder} !{params.K} !{baseDir}/libs/custom_canopy.sample.cluster.R !{txt1} !{txt2}
  '''
 
 }
