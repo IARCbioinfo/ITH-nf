@@ -1,5 +1,5 @@
 #!/usr/bin/env nextflow
-// Copyright (C) 2017 IARC/WHO
+// Copyright (C) 2018 IARC/WHO
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -14,19 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
 params.help = null
 params.ref = null
 params.regions = null
-params.cpu            		= "28"
-params.mem           		 = "20"
+params.correspondance = null
+params.cpu  = 1
+params.mem  = 4
 params.strelka  = null
-params.bcftools   = null
-params.R   = null
-params.tabix  = null
-
-
-
+params.bcftools   = "bcftools"
+params.R   = 3
+params.tabix  = "tabix"
 
 log.info ""
 log.info "----------------------------------------------------------------"
@@ -39,43 +36,43 @@ log.info "under certain conditions; see LICENSE for details."
 log.info "--------------------------------------------------------"
 if (params.help) {
     log.info "--------------------------------------------------------"
+    log.info "------------ IN DEVELOPMENT - DO NOT USE ---------------"
+    log.info "--------------------------------------------------------"
     log.info "                     USAGE                              "
     log.info "--------------------------------------------------------"
     log.info ""
-    log.info "-------------------ITH-------------------------------"
-    log.info "" 
+    log.info "----- Intra tumor heterogeneity nextflow pipeline ------"
+    log.info ""
     log.info "nextflow run iarcbioinfo/pipeline.nf   --bam_folder path/to/bams/ --correspondance path/to/correpondance/csv/  --output_folder /path/to/output --strelka /path/to/trelka --bcftools  /path/to/bcftools --tabix /path/to/tabix --platypus /path/to/platypus --Rcodes --lib /path/to/R/libraries --K integer --ref /path/to/ref --regions path/to/regions"
     log.info ""
     log.info "Mandatory arguments:"
-    log.info "--strelka             PATH                Path to strelka installation dir "
-    log.info "--R              PATH               R installation dir"
-    log.info "--bam_folder         FOLDER               Folder containing bam files "
-    log.info "--correspondance		FILE				File containing the correspondance between the normal and two tumor samples and the sample id"
-    log.info "--ref                 FILE                Reference file"
-    log.info "--regions             FILE                 Regions "
+    log.info "--strelka             PATH          Path to strelka installation dir "
+    log.info "--R                   PATH          R installation dir"
+    log.info "--bam_folder          FOLDER        Folder containing bam files "
+    log.info "--correspondance		  FILE				  File containing the correspondance between the normal and two tumor samples and the sample id"
+    log.info "--ref                 FILE          Reference file"
+    log.info "--regions             FILE          Regions"
     log.info "--lib                 PATH  				Path to libraries : falcon.output.R falcon.output.R falcon.getASCN.epsilon.R custom_canopy.plottree.R"
-    log.info "--K                   INTEGER				Number of subclones to generate by Canopy"   
-    log.info "--tabix 				PATH  				Path to tabix installation dir"
-    log.info "--platypus			PATH				Path to platypus installation dir"
-    log.inof "--Rcodes 				PATH				Path to folder containing R codes "    
+    log.info "--K                   INTEGER				Number of subclones to generate by Canopy"
+    log.info "--tabix 				      PATH  				Path to tabix installation dir"
+    log.info "--platypus			      PATH		  		Path to platypus installation dir"
+    log.inof "--Rcodes 				      PATH			  	Path to folder containing R codes "
     log.info ""
     log.info "Optional arguments:"
-    log.info "--cpu                  INTEGER              Number of cpu to use (default=28)"
-    log.info "--output_folder        PATH                 Output directory for html and zip files (default=fastqc_ouptut)"
-    log.info "--config               FILE                 Use custom configuration file"
+    log.info "--cpu                 INTEGER       Number of cpu to use (default=28)"
+    log.info "--output_folder       PATH          Output directory for html and zip files (default=fastqc_ouptut)"
+    log.info "--config              FILE          Use custom configuration file"
     log.info ""
     log.info "Flags:"
     log.info "--help                                      Display this message"
     log.info ""
     exit 1
-} 
+}
 
 
 ref = file(params.ref)
 regions = 	file(params.regions)
 correspondance = file(params.correspondance)
-
-
 
 bams_TTN= Channel.fromPath(correspondance).splitCsv(header: true, sep: '\t', strip: true)
 		.map{row -> [ row.ID,file(params.bam_folder + "/" + row.tumor1),file(params.bam_folder + "/" + row.tumor1+'.bai'),file(params.bam_folder + "/" + row.tumor2),file(params.bam_folder + "/" + row.tumor2+'.bai'),file(params.bam_folder + "/" + row.normal),file(params.bam_folder + "/" + row.normal+'.bai') ]}
@@ -83,16 +80,16 @@ bams_TTN= Channel.fromPath(correspondance).splitCsv(header: true, sep: '\t', str
 
 (bams_TT,bams_TT2) =  Channel.fromPath(correspondance).splitCsv(header: true, sep: '\t', strip: true)
 		.map{row -> [ row.ID,file(params.bam_folder + "/" + row.tumor1),file(params.bam_folder + "/" + row.tumor1+'.bai'),file(params.bam_folder + "/" + row.tumor2),file(params.bam_folder + "/" + row.tumor2+'.bai') ]}.into(2)
-		
+
 bams_N = Channel.fromPath(correspondance).splitCsv(header: true, sep: '\t', strip: true)
 		.map{row -> [ row.ID,file(params.bam_folder + "/" + row.normal),file(params.bam_folder + "/" + row.normal+'.bai') ]}
-		
+
 bams_T1N = Channel.fromPath(correspondance).splitCsv(header: true, sep: '\t', strip: true)
 		.map{row -> [ row.ID,file(params.bam_folder + "/" + row.tumor1),file(params.bam_folder + "/" + row.tumor1+'.bai'),file(params.bam_folder + "/" + row.normal),file(params.bam_folder + "/" + row.normal+'.bai') ]}
 
 bams_T2N = Channel.fromPath(correspondance).splitCsv(header: true, sep: '\t', strip: true)
 		.map{row -> [ row.ID,file(params.bam_folder + "/" + row.tumor2),file(params.bam_folder + "/" + row.tumor2+'.bai'),file(params.bam_folder + "/" + row.normal),file(params.bam_folder + "/" + row.normal+'.bai') ]}
-	
+
 IDs_TTN = Channel.fromPath(correspondance).splitCsv(header: true, sep: '\t', strip: true)
 		.map{row -> [ row.ID,row.tumor1, row.tumor2, row.normal ]}
 
@@ -101,12 +98,14 @@ IDs_TTN = Channel.fromPath(correspondance).splitCsv(header: true, sep: '\t', str
 
 chromosomes = Channel.from(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,'X','Y')
 
-strelka_germline= params.strelka + '/bin/configureStrelkaGermlineWorkflow.py'           
-                
+strelka_germline = params.strelka + '/bin/configureStrelkaGermlineWorkflow.py'
+
+
+/* 
 process germline_calling {
- 
+
  publishDir params.output_folder, mode: 'copy'
- 
+
   input:
   set val(ID) ,file (normal),file(normal_bai) from bams_N
   file ref
@@ -119,12 +118,12 @@ process germline_calling {
 
   shell:
   '''
-    
-  
+
+
   runDir="results/variants/"
   !{strelka_germline} --bam !{normal} --referenceFasta !{params.ref}   --callRegions !{params.regions} --runDir strelkaGermline/!{ID}
   cd strelkaGermline/!{ID}
-  ./runWorkflow.py -m local -j !{params.cpu} 
+  ./runWorkflow.py -m local -j !{params.cpu}
 
 cd results/variants
 
@@ -132,12 +131,10 @@ cd results/variants
   mv  variants.vcf.gz !{normal.baseName}.variants.vcf.gz
   mv  genome.S1.vcf.gz.tbi !{normal.baseName}.vcf.gz.tbi
   mv  variants.vcf.gz.tbi !{normal.baseName}.variants.vcf.gz.tbi
- 
+
 
   '''
 }
-
-
 
 input_germlineCoverage = bams_TTN.join(VCF_germline)
 
@@ -150,7 +147,7 @@ publishDir params.output_folder, mode: 'copy'
   file ref
   file regions
 
-  
+
   output:
   set val(ID),file("${ID}.vcf") into coverage_germline
 
@@ -160,16 +157,12 @@ shell :
 '''
 }
 
-
-
-
-
-strelka_somatic= params.strelka + '/bin/configureStrelkaSomaticWorkflow.py' 
+strelka_somatic= params.strelka + '/bin/configureStrelkaSomaticWorkflow.py'
 
 process somatic_calling_T1 {
- 
+
  publishDir params.output_folder, mode: 'copy'
- 
+
   input:
 set  val( ID) ,file (tumor1),file(tumor1_bai), file(normal), file(normal_bai) from bams_T1N
   file ref
@@ -187,24 +180,19 @@ set  val( ID) ,file (tumor1),file(tumor1_bai), file(normal), file(normal_bai) fr
      ./runWorkflow.py -m local -j 28
 
   cd results/variants
-      
+
      !{params.bcftools} view -i'FILTER="PASS"' somatic.indels.vcf.gz > somatic.indels.vcf.gz
      mv somatic.indels.vcf.gz !{tumor1.baseName}.somatic.indels.vcf.gz
-     
+
      !{params.bcftools} view -i'FILTER="PASS"' somatic.snvs.vcf.gz >  somatic.snvs.vcf.gz
      mv somatic.snvs.vcf.gz !{tumor1.baseName}.somatic.snvs.vcf.gz
-     
+
      mv somatic.indels.vcf.gz.tbi !{tumor1.baseName}.somatic.indels.vcf.gz.tbi
      mv somatic.snvs.vcf.gz.tbi !{tumor1.baseName}.somatic.snvs.vcf.gz.tbi
-     
-     
+
+
   '''
 }
-
-
-
-
-
 
 process somatic_calling_T2 {
 
@@ -219,7 +207,7 @@ set  val( ID) ,file (tumor2), file(tumor2_bai), file(normal),file(normal_bai) fr
    set val (ID), file ('*.indels.vcf.gz') into VCF_somatic2_indels
    set val (ID), file ('*.snvs.vcf.gz') into (VCF_somatic2_snvs,VCF_somatic2_snvs2)
    set val (ID), file ('*.tbi') into TBI_somatic2
-  
+
   shell:
   '''
 
@@ -227,17 +215,17 @@ set  val( ID) ,file (tumor2), file(tumor2_bai), file(normal),file(normal_bai) fr
  cd strelkaSomatic2/!{ID}
      ./runWorkflow.py -m local -j 28
 cd results/variants
-      
+
      !{params.bcftools} view -i'FILTER="PASS"' somatic.indels.vcf.gz > somatic.indels.vcf.gz
      mv somatic.indels.vcf.gz !{tumor2.baseName}.somatic.indels.vcf.gz
-     
+
      !{params.bcftools} view -i'FILTER="PASS"' somatic.snvs.vcf.gz >  somatic.snvs.vcf.gz
      mv somatic.snvs.vcf.gz !{tumor2.baseName}.somatic.snvs.vcf.gz
-     
+
      mv somatic.indels.vcf.gz.tbi !{tumor2.baseName}.somatic.indels.vcf.gz.tbi
      mv somatic.snvs.vcf.gz.tbi !{tumor2.baseName}.somatic.snvs.vcf.gz.tbi
-     
-     
+
+
   '''
 }
 
@@ -255,8 +243,8 @@ publishDir params.output_folder, mode: 'copy'
   set val(ID),file (bamtumor1),file(bamtumor2), file(somaticVCF1),file(somaticVCF2) from input_somaticCoverage
   file ref
   file regions
-  
-  
+
+
   output:
 set val(ID),file("${ID}_covargeSomatic_T1.vcf.gz"),file("${ID}_covargeSomatic_T2.vcf.gz") into VCF_coverage_somatic
  set val(ID),file("${ID}_covargeSomatic_T1.vcf.gz.tbi"),file("${ID}_covargeSomatic_T2.vcf.gz.tbi") into TBI_coverage_somatic
@@ -267,14 +255,14 @@ set val(ID),file("${ID}_covargeSomatic_T1.vcf.gz"),file("${ID}_covargeSomatic_T2
  !{strelka_germline} --bam=!{bamtumor1} --bam !{bamtumor2} --forcedGT !{somaticVCF1} --forcedGT !{somaticVCF2}  --referenceFasta=!{params.ref}   --callRegions=!{params.regions} --runDir strelkaCoverageSomatic/!{ID}
  cd strelkaCoverageSomatic/!{ID}
      ./runWorkflow.py -m local -j 28
-     
+
      cd results/variants
-     
+
      mv genome.S1.vcf.gz !{ID}_covargeSomatic_T1.vcf.gz
      mv genome.S1.vcf.gz.tbi !{ID}_covargeSomatic_T1.vcf.gz.tbi
      mv genome.S2.vcf.gz !{ID}_covargeSomatic_T2.vcf.gz
      mv genome.S2.vcf.gz.tbi !{ID}_covargeSomatic_T2.vcf.gz.tbi
-     
+
   '''
 }
 
@@ -287,60 +275,55 @@ process split_into_chr {
 
 	output :
 	set val(ID), val(chr) file ("*.vcf.gz") into VCF_by_chr
-	
-	shell : 
+
+	shell :
 
  """
    !{params.tabix} -p !{vcf}
    !{params.tabix} -h !{filevcf} chr${chr} > germline_chr${chr}.vcf
 """
 }
- 
 
-
-
-
-		
 input_Falcon = VCF_by_chr.join(IDs_TTN)
 
 process Falcon {
 
 publishDir params.output_folder, mode: 'copy'
 
- 	input : 
+ 	input :
  	set val(ID), val(chr), file(vcf_splitted), val(T1_ID), val(T2_ID), val(N_ID) from input_Falcon
- 	
+
  	output :
- 	
+
  	set val(ID),  file('*.pdf') into Falcon_PDF_report
 	set val(ID),  file('*.txt') into (Falcon_CNVs_txt,Falcon_CNVs_txt2)
 	set val(ID), file('*.rda') into Falcon_CNVs_rda
-	
+
 
  	shell :
  	 '''
- 	 Rscript --vanilla !{params.Rcodes}/Falcon.R !{vcf_splitted} !{ID} !{N_ID} !{T1_ID} !{T2_ID} !{chr} !{params.output_folder} !{params.lib}/falcon.output.R !{params.lib}/falcon.qc.R
- '''
+ 	 Rscript --vanilla !{baseDir}/Falcon.R !{vcf_splitted} !{ID} !{N_ID} !{T1_ID} !{T2_ID} !{chr} !{params.output_folder} !{params.lib}/falcon.output.R !{params.lib}/falcon.qc.R
+   '''
 }
 
 
  input_Falcon_eps = Falcon_CNVs_txt.join(Falcon_CNVs_rda)
- 
+
 process Falcon_stderr {
 
 publishDir params.output_folder, mode: 'copy'
 
 	input :
 	set val(ID), file(txt), file(coord1),file(coord2)  from input_Falcon_eps
-	
-	
+
+
 	output :
-	
+
 	set val(ID), file('*.txt') into Falcon_stderr
-	
-	shell : 
+
+	shell :
 	 '''
-Rscript --vanilla !{params.Rcodes}/Falcon_epsilon.R   !{txt} !{coord1} !{coord2}   !{params.output_folder} !{params.lib}/falcon.output.R !{params.lib}/falcon.getASCN.epsilon.R 
+Rscript --vanilla !{params.Rcodes}/Falcon_epsilon.R   !{txt} !{coord1} !{coord2}   !{params.output_folder} !{params.lib}/falcon.output.R !{params.lib}/falcon.getASCN.epsilon.R
  '''
 }
 
@@ -354,16 +337,16 @@ process Canopy {
 publishDir params.output_folder, mode: 'copy'
 
 	input :
-	
+
 	set val(ID), file(falcontxt), file(somatic1),file(somatic2), file(coveragesomatic1), file(coveragesomatic2) ,val(T1_ID), val(T2_ID),file(txt1),file(txt2) from input_Canopy
-	
-	
+
+
 	output :
-	
+
 	set val(ID), file('*.bic') into Canopy
 	set val(ID),file('*.svg'),file('*.pdf'),file('*.rda') into Canopy_reports
-	
-	shell : 
+
+	shell :
 	 '''
 	Rscript --vanilla !{params.Rcodes}/Canopy.R !{falcontxt} !{ID} !{T1_ID}  !{T2_ID} !{somatic1} !{somatic2} !{coveragesomatic1} !{coveragesomatic2} !{params.output_folder} !{params.K} !{params.lib}/custom_canopy.sample.cluster.R !{txt1} !{txt2}
  '''
@@ -376,18 +359,17 @@ process Canopy_tree {
 publishDir params.output_folder, mode: 'copy'
 
 	input :
-	
+
 	set val(ID), file(bic) from Canopy
 	output :
-	
+
 	set val(ID), file('*.SVG'),file('*.pdf'),file('*.txt') into Canopy_trees
 
-	
-	shell : 
+
+	shell :
 	 '''
 	Rscript --vanilla !{params.Rcodes}/Canopy_tree.R !{ID}   !{bic}  !{params.lib}/custom_canopy.plottree.R
  '''
 }
 
-
- 
+*/
