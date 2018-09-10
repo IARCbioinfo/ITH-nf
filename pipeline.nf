@@ -106,8 +106,9 @@ chromosomes = Channel.from(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21
 strelka2_germline = params.strelka2 + '/bin/configureStrelkaGermlineWorkflow.py'
 
 process germline_calling {
+  tag { ID }
 
- publishDir params.output_folder, mode: 'copy'
+  publishDir params.output_folder, mode: 'copy'
 
   input:
   set val(ID), file(normal), file(normal_bai) from bams_N
@@ -117,21 +118,16 @@ process germline_calling {
   file regions_tbi
 
   output:
-  set val("${ID}"),file("${normal.baseName}.vcf.gz") into VCF_germline
-  set val("${ID}"),file("${normal.baseName}.variants.vcf.gz") into VCF_germlineVariants
-  set val("${ID}"), file("${normal.baseName}.vcf.gz.tbi"), file("${normal.baseName}.variants.vcf.gz.tbi") into TBI_Germline
+  set val("${ID}"),file("${ID}.variants.vcf.gz") into VCF_germline
+  set val("${ID}"), file("${ID}.variants.vcf.gz.tbi") into TBI_Germline
 
   shell:
   '''
-  runDir="results/variants/"
-  !{strelka2_germline} --bam !{normal} --referenceFasta !{fasta_ref}   --callRegions !{regions} --runDir strelkaGermline/!{ID}
-  cd strelkaGermline/!{ID}
+  runDir="results"
+  !{strelka2_germline} --bam !{normal} --referenceFasta !{fasta_ref} --callRegions !{regions} --runDir .
   ./runWorkflow.py -m local -j !{params.cpu}
-  cd results/variants
-  mv  genome.S1.vcf.gz !{normal.baseName}.vcf.gz
-  mv  variants.vcf.gz !{normal.baseName}.variants.vcf.gz
-  mv  genome.S1.vcf.gz.tbi !{normal.baseName}.vcf.gz.tbi
-  mv  variants.vcf.gz.tbi !{normal.baseName}.variants.vcf.gz.tbi
+  mv results/variants/variants.vcf.gz !{ID}.variants.vcf.gz
+  mv results/variants/variants.vcf.gz.tbi !{ID}.variants.vcf.gz.tbi
   '''
 }
 
