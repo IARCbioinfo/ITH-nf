@@ -126,8 +126,8 @@ process germline_calling {
   runDir="results"
   !{strelka2_germline} --bam !{normal} --referenceFasta !{fasta_ref} --callRegions !{regions} --runDir .
   ./runWorkflow.py -m local -j !{params.cpu}
-  mv results/variants/variants.vcf.gz !{ID}.variants.vcf.gz
-  mv results/variants/variants.vcf.gz.tbi !{ID}.variants.vcf.gz.tbi
+  bcftools view -m2 -M2 -v snps results/variants/variants.vcf.gz | bgzip -c > !{ID}.variants.vcf.gz
+  tabix -p vcf !{ID}.variants.vcf.gz
   '''
 }
 
