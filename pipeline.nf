@@ -135,26 +135,6 @@ process germline_calling {
 }
 
 /*
-input_germlineCoverage = bams_TTN.join(VCF_germline)
-
-process germline_tumor_coverage {
-
-publishDir params.output_folder, mode: 'copy'
-
-  input:
-  set val(ID),file (bamtumor1),file(bamtumor2),file(bamnormal),file(germlineVCF) from input_germlineCoverage
-  file fasta_ref
-  file regions
-
-
-  output:
-  set val(ID),file("${ID}.vcf") into coverage_germline
-
-shell :
-'''
-!{params.platypus} callVariants --bamFiles=!{bamnormal},!{bamtumor1},!{bamtumor2} --refFile=!{input_ref} --regions=!{params.regions} --nCPU=12 --output=!{ID}.coverage.germline.vcf --source=!{germlineVCF} --minPosterior=0 --getVariantsFromBAMs=0
-'''
-}
 
 strelka2_somatic= params.strelka2 + '/bin/configureStrelkaSomaticWorkflow.py'
 
