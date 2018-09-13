@@ -127,7 +127,9 @@ process germline_calling {
   runDir="results"
   !{strelka2_germline} --bam !{normal} --bam !{tumor1} --bam !{tumor2} --referenceFasta !{fasta_ref} --callRegions !{regions} --runDir .
   ./runWorkflow.py -m local -j !{params.cpu}
-  bcftools view -m2 -M2 -v snps results/variants/variants.vcf.gz | bgzip -c > !{ID}.germline.variants.vcf.gz
+  sm=`samtools view -H !{normal} | grep '^@RG' | sed "s/.*SM:\([^\t]*\).*/\1/g" | uniq`
+  idx=`bcftools query -l results/variants/variants.vcf.gz | nl -v 0 | grep $sm | cut -f1`
+  echo "bcftools view -m2 -M2 -v snps -f PASS -i 'GT[$idx]=\"1/0\" | GT[$idx]=\"0/1\" | GT[$idx]=\"1/1\"' results/variants/variants.vcf.gz" | bash - | bgzip -c > !{ID}.germline.variants.vcf.gz
   tabix -p vcf !{ID}.germline.variants.vcf.gz
   '''
 }
