@@ -105,29 +105,30 @@ chromosomes = Channel.from(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21
 
 strelka2_germline = params.strelka2 + '/bin/configureStrelkaGermlineWorkflow.py'
 
+
 process germline_calling {
   tag { ID }
 
   publishDir params.output_folder, mode: 'copy'
 
   input:
-  set val(ID), file(normal), file(normal_bai) from bams_N
+  set val(ID), file(tumor1), file(tumor1_bai), file(tumor2), file(tumor2_bai), file(normal), file(normal_bai) from bams_TTN
   file fasta_ref
   file fasta_ref_fai
   file regions
   file regions_tbi
 
   output:
-  set val("${ID}"),file("${ID}.variants.vcf.gz") into VCF_germline
-  set val("${ID}"), file("${ID}.variants.vcf.gz.tbi") into TBI_Germline
+  set val("${ID}"),file("${ID}.germline.variants.vcf.gz") into VCF_germline
+  set val("${ID}"), file("${ID}.germline.variants.vcf.gz.tbi") into TBI_Germline
 
   shell:
   '''
   runDir="results"
-  !{strelka2_germline} --bam !{normal} --referenceFasta !{fasta_ref} --callRegions !{regions} --runDir .
+  !{strelka2_germline} --bam !{normal} --bam !{tumor1} --bam !{tumor2} --referenceFasta !{fasta_ref} --callRegions !{regions} --runDir .
   ./runWorkflow.py -m local -j !{params.cpu}
-  bcftools view -m2 -M2 -v snps results/variants/variants.vcf.gz | bgzip -c > !{ID}.variants.vcf.gz
-  tabix -p vcf !{ID}.variants.vcf.gz
+  bcftools view -m2 -M2 -v snps results/variants/variants.vcf.gz | bgzip -c > !{ID}.germline.variants.vcf.gz
+  tabix -p vcf !{ID}.germline.variants.vcf.gz
   '''
 }
 
